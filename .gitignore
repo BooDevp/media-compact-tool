@@ -3,6 +3,7 @@
 *.exe
 ffmpeg-dev/
 vips-dev/
+vips-modules-8.18/
 *.rar
 
 # IDEs
