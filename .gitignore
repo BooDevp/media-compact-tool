@@ -1,0 +1,9 @@
+# Compilados
+*.dll
+*.exe
+ffmpeg-dev/
+vips-dev/
+
+# IDEs
+.vscode/
+.idea/
