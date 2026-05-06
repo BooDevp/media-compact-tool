@@ -3,6 +3,7 @@
 *.exe
 ffmpeg-dev/
 vips-dev/
+*.rar
 
 # IDEs
 .vscode/
