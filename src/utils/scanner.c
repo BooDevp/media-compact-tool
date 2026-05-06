@@ -10,6 +10,7 @@
 #include "../../include/image.h"
 #include "../../include/video.h"
 #include "../../include/config.h"
+#include "../../include/ui.h"
 
 static void asegurar_directorio(const char *ruta)
 {
@@ -59,22 +60,36 @@ int procesar_recursivo(const char *dir_in, const char *dir_out, Stats *stats)
             if (p)
                 *p = '\0';
 
+            // --- PROCESADO DE IMAGEN ---
             if (vips_foreign_find_load(ruta_in))
             {
+                for (int i = 0; i < 5; i++)
+                {
+                    ui_loading_imagen(ent->d_name);
+                    usleep(20000);
+                }
+
                 snprintf(ruta_out, sizeof(ruta_out), "%s/%s%s", dir_out, nombre_base, IMG_EXT_OUT);
+
                 if (compactar_imagen_jpg(ruta_in, ruta_out))
                 {
                     stats->imagenes++;
                     archivos_en_rama++;
                 }
             }
+            // --- PROCESADO DE VIDEO ---
             else
             {
                 AVFormatContext *pCtx = NULL;
                 if (avformat_open_input(&pCtx, ruta_in, NULL, NULL) == 0)
                 {
                     avformat_close_input(&pCtx);
+
+                    // Iniciamos la barra al 0%
+                    ui_barra_progreso("VIDEO", ent->d_name, 0.0);
+
                     snprintf(ruta_out, sizeof(ruta_out), "%s/%s%s", dir_out, nombre_base, VID_EXT_OUT);
+
                     if (compactar_video(ruta_in, ruta_out))
                     {
                         stats->videos++;
@@ -85,7 +100,10 @@ int procesar_recursivo(const char *dir_in, const char *dir_out, Stats *stats)
         }
     }
     closedir(dir);
-    if (archivos_en_rama == 0)
+
+    if (archivos_en_rama == 0){
         rmdir(dir_out);
+    }
+
     return archivos_en_rama;
 }

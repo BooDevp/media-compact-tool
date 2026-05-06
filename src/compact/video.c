@@ -2,9 +2,10 @@
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 #include <libavutil/opt.h>
-#include "../../include/config.h"
 
-// Función interna para enviar frames al codificador
+#include "../../include/config.h"
+#include "../../include/ui.h"
+
 static int escribir_frame(AVFrame *frame, AVCodecContext *enc, AVStream *st, AVFormatContext *ofmt)
 {
     AVPacket *pkt = av_packet_alloc();
@@ -25,6 +26,9 @@ static int escribir_frame(AVFrame *frame, AVCodecContext *enc, AVStream *st, AVF
 
 int compactar_video(const char *ruta_in, const char *ruta_out)
 {
+    const char *nombre_archivo = strrchr(ruta_in, '/') ? strrchr(ruta_in, '/') + 1 : (strrchr(ruta_in, '\\') ? strrchr(ruta_in, '\\') + 1 : ruta_in);
+
+    av_log_set_level(AV_LOG_QUIET);
     AVFormatContext *ifmt = NULL, *ofmt = NULL;
     AVCodecContext *dec = NULL, *enc = NULL;
     int v_idx = -1, success = 0;
@@ -81,10 +85,24 @@ int compactar_video(const char *ruta_in, const char *ruta_out)
         AVPacket *pkt = av_packet_alloc();
         AVFrame *frm = av_frame_alloc();
         int64_t pts = 0;
+        int64_t duracion_total = ifmt->duration;
+
         while (av_read_frame(ifmt, pkt) >= 0)
         {
             if (pkt->stream_index == v_idx)
             {
+                // ACTUALIZACIÓN DE BARRA DE PROGRESO
+                if (duracion_total > 0 && pkt->pts != AV_NOPTS_VALUE)
+                {
+                    double seg_actual = pkt->pts * av_q2d(ifmt->streams[v_idx]->time_base);
+                    double seg_total = duracion_total / (double)AV_TIME_BASE;
+                    double porcentaje = seg_actual / seg_total;
+                    if (porcentaje > 1.0)
+                        porcentaje = 1.0;
+
+                    ui_barra_progreso("VIDEO", nombre_archivo, porcentaje);
+                }
+
                 if (avcodec_send_packet(dec, pkt) >= 0)
                 {
                     while (avcodec_receive_frame(dec, frm) >= 0)
@@ -101,18 +119,25 @@ int compactar_video(const char *ruta_in, const char *ruta_out)
             }
             av_packet_unref(pkt);
         }
+
+        // Finalizar
+        ui_barra_progreso("VIDEO", nombre_archivo, 1.0);
+
         escribir_frame(NULL, enc, ofmt->streams[v_idx], ofmt);
         av_write_trailer(ofmt);
         av_frame_free(&frm);
         av_packet_free(&pkt);
         success = 1;
-        printf("  [OK] Video: %s\n", ruta_in);
     }
 
     avcodec_free_context(&dec);
     avcodec_free_context(&enc);
+
     if (!(ofmt->oformat->flags & AVFMT_NOFILE))
+    {
         avio_closep(&ofmt->pb);
+    }
+
     avformat_free_context(ofmt);
     avformat_close_input(&ifmt);
     return success;

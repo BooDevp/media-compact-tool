@@ -28,8 +28,6 @@ int compactar_imagen_jpg(const char *ruta_in, const char *ruta_out)
     vips_image_set_string(rotada, "exif-ifd0-Artist", FIRMA_OPTIMIZADO);
     int ret = vips_jpegsave(rotada, ruta_out, "Q", IMG_QUALITY, "optimize_coding", TRUE, NULL);
 
-    printf(ret == 0 ? "  [OK] Imagen: %s\n" : "  [ERR] Imagen: %s\n", ruta_in);
-
     g_object_unref(in);
     g_object_unref(rotada);
     return (ret == 0);
