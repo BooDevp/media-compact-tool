@@ -4,116 +4,88 @@
 #include <signal.h>
 #include <stdlib.h>
 
-// Librerías Windows soporte ANSI y UTF-8
 #ifdef _WIN32
 #include <windows.h>
+#include <conio.h>
 #endif
 
 #include "../include/scanner.h"
 #include "../include/config.h"
 #include "../include/ui.h"
 
-// Limpia y normaliza la ruta de entrada
-static void handle_sigint(int sig)
-{
+void handle_sigint(int sig) {
     printf(SHOW_CURSOR "\n\n  Abortado por el usuario.\n");
     exit(0);
 }
 
-static void limpiar_ruta_entrada(char *ruta)
-{
-    ruta[strcspn(ruta, "\n")] = 0;
-    ruta[strcspn(ruta, "\r")] = 0;
-
-    if (ruta[0] == '"')
-    {
-        memmove(ruta, ruta + 1, strlen(ruta));
-        size_t l = strlen(ruta);
-        if (l > 0 && ruta[l - 1] == '"')
-        {
-            ruta[l - 1] = 0;
-        }
+void limpiar_ruta(char *r) {
+    r[strcspn(r, "\n")] = 0; 
+    r[strcspn(r, "\r")] = 0;
+    if (r[0] == '"') {
+        memmove(r, r + 1, strlen(r));
+        size_t l = strlen(r);
+        if (l > 0 && r[l-1] == '"') r[l-1] = 0;
     }
-
-    size_t len = strlen(ruta);
-    if (len > 0 && (ruta[len - 1] == '/' || ruta[len - 1] == '\\'))
-        ruta[len - 1] = '\0';
+    size_t len = strlen(r);
+    if (len > 0 && (r[len-1] == '/' || r[len-1] == '\\')) r[len-1] = '\0';
 }
 
-static void configurar_consola_windows(void)
-{
-#ifdef _WIN32
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    if (hOut != INVALID_HANDLE_VALUE)
-    {
-        DWORD dwMode = 0;
-        if (GetConsoleMode(hOut, &dwMode))
-        {
-            dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-            SetConsoleMode(hOut, dwMode);
-        }
-    }
-    SetConsoleOutputCP(CP_UTF8);
-#endif
-}
-
-static int obtener_carpeta_entrada(int argc, char *argv[], char *carpeta_in, size_t size)
-{
-    if (argc >= 2)
-    {
-        strncpy(carpeta_in, argv[1], size - 1);
-        carpeta_in[size - 1] = '\0';
-        limpiar_ruta_entrada(carpeta_in);
-        printf("\n");
-        return 1;
-    }
-
-    ui_mostrar_drop_zone();
-    if (fgets(carpeta_in, (int)size, stdin) == NULL)
-        return 0;
-    limpiar_ruta_entrada(carpeta_in);
-    printf("\n");
-    return (strlen(carpeta_in) > 0);
-}
-
-// Punto de entrada: inicializa y ejecuta el procesamiento principal
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     signal(SIGINT, handle_sigint);
 
-    configurar_consola_windows();
+#ifdef _WIN32
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD dwMode = 0;
+    GetConsoleMode(hOut, &dwMode);
+    SetConsoleMode(hOut, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    SetConsoleOutputCP(CP_UTF8);
+#endif
 
     ui_imprimir_header();
+    char c_in[MAX_PATH_LEN] = {0}, c_out[MAX_PATH_LEN + 20];
 
-    char carpeta_in[MAX_PATH_LEN];
-    char carpeta_out[MAX_PATH_LEN + 20];
+    if (argc >= 2) {
+        strncpy(c_in, argv[1], MAX_PATH_LEN-1);
+        limpiar_ruta(c_in);
+    } else {
+        ui_mostrar_drop_zone();
+        if (fgets(c_in, MAX_PATH_LEN, stdin) == NULL) return 1;
+        limpiar_ruta(c_in);
+        printf("\n");
+        printf("\n");
+    }
 
-    if (!obtener_carpeta_entrada(argc, argv, carpeta_in, sizeof(carpeta_in)))
-    {
+    if (strlen(c_in) == 0) {
         ui_error_args();
         return 1;
     }
+    
+    printf("\033[H\033[J"); 
+    ui_imprimir_header();     
+    printf("\n  " TEXT_GRAY "Carpeta: " RESET TEXT_CYAN "%s" RESET "\n", c_in);
 
-    if (VIPS_INIT(argv[0]))
-    {
-        printf("\033[31mError: No se pudo inicializar libvips.\n\033[0m");
-        return 1;
-    }
-
-    snprintf(carpeta_out, sizeof(carpeta_out), "%s%s", carpeta_in, SUFIJO_CARPETA);
+    if (VIPS_INIT(argv[0])) return 1;
+    snprintf(c_out, sizeof(c_out), "%s%s", c_in, SUFIJO_CARPETA);
 
     printf(HIDE_CURSOR);
 
-    Stats stats = {0, 0};
-    int total = procesar_recursivo(carpeta_in, carpeta_out, &stats);
+    int total_f = contar_media_recursiva(c_in);
+    Stats st = {0, 0};
+    int processed = 0;
+
+    if (total_f > 0) {
+        ui_barra_progreso_total(0.0, 0, total_f);
+        procesar_recursivo_con_progreso(c_in, c_out, &st, total_f, &processed);
+    }
 
     ui_finalizar_estado();
-    ui_imprimir_final(total, stats, carpeta_out);
-
+    ui_imprimir_final(processed, st, c_out);
     vips_shutdown();
 
-    printf(RESET DIM "  Presiona ENTER para salir..." RESET);
+    printf(RESET DIM "\n  Presiona ENTER para salir..." RESET);
     printf(SHOW_CURSOR);
+
+    while(_kbhit()) { _getch(); }
     getchar();
 
     return 0;

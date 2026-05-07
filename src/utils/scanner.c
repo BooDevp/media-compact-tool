@@ -135,3 +135,86 @@ int procesar_recursivo(const char *dir_in, const char *dir_out, Stats *stats)
 
     return archivos_en_rama;
 }
+
+// Cuenta recursivamente los archivos multimedia (imágenes o vídeos)
+int contar_media_recursiva(const char *dir_in)
+{
+    DIR *dir = opendir(dir_in);
+    if (!dir)
+        return 0;
+
+    int total = 0;
+    struct dirent *ent;
+    while ((ent = readdir(dir)) != NULL)
+    {
+        if (ent->d_name[0] == '.')
+            continue;
+
+        char ruta_in[MAX_PATH_LEN];
+        snprintf(ruta_in, sizeof(ruta_in), "%s/%s", dir_in, ent->d_name);
+
+        if (es_directorio(ruta_in))
+        {
+            total += contar_media_recursiva(ruta_in);
+        }
+        else
+        {
+            if (es_imagen_media(ruta_in) || es_video_media(ruta_in))
+                total++;
+        }
+    }
+
+    closedir(dir);
+    return total;
+}
+
+// Versión de procesar_recursivo que actualiza el progreso global
+int procesar_recursivo_con_progreso(const char *dir_in, const char *dir_out, Stats *stats, int total_files, int *processed_count)
+{
+    DIR *dir = opendir(dir_in);
+    if (!dir)
+        return 0;
+
+    asegurar_directorio(dir_out);
+    int archivos_en_rama = 0;
+    struct dirent *ent;
+
+    while ((ent = readdir(dir)) != NULL)
+    {
+        if (ent->d_name[0] == '.')
+            continue;
+
+        char ruta_in[MAX_PATH_LEN], ruta_out[MAX_PATH_LEN];
+        snprintf(ruta_in, sizeof(ruta_in), "%s/%s", dir_in, ent->d_name);
+
+        if (es_directorio(ruta_in))
+        {
+            snprintf(ruta_out, sizeof(ruta_out), "%s/%s", dir_out, ent->d_name);
+            archivos_en_rama += procesar_recursivo_con_progreso(ruta_in, ruta_out, stats, total_files, processed_count);
+        }
+        else
+        {
+            if (es_imagen_media(ruta_in) || es_video_media(ruta_in))
+            {
+                if (procesar_archivo(ruta_in, ent->d_name, dir_out, stats))
+                {
+                    archivos_en_rama++;
+                }
+                if (processed_count && total_files > 0)
+                {
+                    (*processed_count)++;
+                    double pct = ((double)(*processed_count)) / (double)total_files;
+                    ui_barra_progreso_total(pct, *processed_count, total_files);
+                }
+            }
+        }
+    }
+    closedir(dir);
+
+    if (archivos_en_rama == 0)
+    {
+        rmdir(dir_out);
+    }
+
+    return archivos_en_rama;
+}
