@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 #include <libavutil/opt.h>
@@ -6,6 +7,7 @@
 #include "../../include/config.h"
 #include "../../include/ui.h"
 
+// Codifica y escribe paquetes desde un frame al contenedor de salida
 static int escribir_frame(AVFrame *frame, AVCodecContext *enc, AVStream *st, AVFormatContext *ofmt)
 {
     AVPacket *pkt = av_packet_alloc();
@@ -24,6 +26,7 @@ static int escribir_frame(AVFrame *frame, AVCodecContext *enc, AVStream *st, AVF
     return 0;
 }
 
+// Reencoda el stream de vídeo a HEVC y copia streams no-vídeo al archivo de salida
 int compactar_video(const char *ruta_in, const char *ruta_out)
 {
     const char *nombre_archivo = strrchr(ruta_in, '/') ? strrchr(ruta_in, '/') + 1 : (strrchr(ruta_in, '\\') ? strrchr(ruta_in, '\\') + 1 : ruta_in);
@@ -86,12 +89,11 @@ int compactar_video(const char *ruta_in, const char *ruta_out)
         AVFrame *frm = av_frame_alloc();
         int64_t pts = 0;
         int64_t duracion_total = ifmt->duration;
-        
+
         while (av_read_frame(ifmt, pkt) >= 0)
         {
             if (pkt->stream_index == v_idx)
             {
-                // ACTUALIZACIÓN DE BARRA DE PROGRESO
                 if (duracion_total > 0 && pkt->pts != AV_NOPTS_VALUE)
                 {
                     double seg_actual = pkt->pts * av_q2d(ifmt->streams[v_idx]->time_base);
@@ -99,7 +101,7 @@ int compactar_video(const char *ruta_in, const char *ruta_out)
                     double porcentaje = seg_actual / seg_total;
                     if (porcentaje > 1.0)
                         porcentaje = 1.0;
-                    
+
                     ui_barra_progreso("VIDEO", nombre_archivo, porcentaje);
                 }
 
@@ -120,7 +122,6 @@ int compactar_video(const char *ruta_in, const char *ruta_out)
             av_packet_unref(pkt);
         }
 
-        // Finalizar
         ui_barra_progreso("VIDEO", nombre_archivo, 1.0);
 
         escribir_frame(NULL, enc, ofmt->streams[v_idx], ofmt);

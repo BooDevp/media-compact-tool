@@ -3,6 +3,7 @@
 #include <vips/vips.h>
 #include "../../include/config.h"
 
+// Comprime una imagen JPEG con libvips y marca el archivo como optimizado
 int compactar_imagen_jpg(const char *ruta_in, const char *ruta_out)
 {
     VipsImage *in = vips_image_new_from_file(ruta_in, NULL);

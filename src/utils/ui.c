@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "../../include/ui.h"
 
+// Imprime la cabecera y configura la pantalla inicial
 void ui_imprimir_header()
 {
     printf(HIDE_CURSOR "\033[H\033[J");
@@ -12,6 +13,7 @@ void ui_imprimir_header()
     printf(DIM "  ───────────────────────────────────────────────────────────────\n\n" RESET);
 }
 
+// Muestra la interfaz para introducir la carpeta de origen
 void ui_mostrar_drop_zone()
 {
     printf(TEXT_GRAY "  ┌─────────────────────────────────────────────────────────────┐\n");
@@ -19,40 +21,33 @@ void ui_mostrar_drop_zone()
     printf("  │    " RESET BOLD "ARRASTRA UNA CARPETA AQUÍ Y PULSA ENTER PARA EMPEZAR" RESET TEXT_GRAY "     │\n");
     printf("  │                                                             │\n");
     printf("  └─────────────────────────────────────────────────────────────┘\n" RESET);
-    printf(SHOW_CURSOR "\n  > " TEXT_CYAN); // Mostramos el cursor para que sepa dónde cae la ruta
+    printf(SHOW_CURSOR "\n  > " TEXT_CYAN);
 }
 
-// Icono de carga para procesos rápidos (Imágenes)
+// Muestra un spinner para indicar actividad en imágenes
 void ui_loading_imagen(const char *archivo)
 {
-    // Frames de la animación
     static int frame = 0;
     const char *spinner[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
     int total_frames = 10;
 
     printf("\r\033[K  " TEXT_CYAN ">> " RESET BOLD "IMAGEN   " RESET);
-
-    // Imprimimos el frame actual del spinner
     printf(TEXT_BLUE "[%s] " RESET, spinner[frame]);
-
     printf(TEXT_GRAY "Procesando: %-25.25s" RESET, archivo);
 
-    // Avanzamos el frame para la próxima llamada
     frame = (frame + 1) % total_frames;
 
     fflush(stdout);
 }
 
-// Barra de progreso para procesos largos (Vídeos)
+// Dibuja una barra de progreso para procesos largos como vídeo
 void ui_barra_progreso(const char *tipo, const char *archivo, double porcentaje)
 {
     int ancho_barra = 20;
     int rellenos = (int)(ancho_barra * porcentaje);
 
-    // Mantenemos estructura fija para evitar saltos visuales
     printf("\r  " TEXT_CYAN ">> " RESET BOLD "%-8s " RESET, tipo);
 
-    // Dibujar la barra con bloques Unicode
     printf(TEXT_BLUE "[");
     for (int i = 0; i < ancho_barra; i++)
     {
@@ -65,17 +60,18 @@ void ui_barra_progreso(const char *tipo, const char *archivo, double porcentaje)
     }
     printf("] " RESET);
 
-    // Formato fijo: %3.0f%% para el número y %-25.25s para el nombre
     printf(TEXT_GREEN "%3.0f%% " RESET TEXT_GRAY "Procesando: %-25.25s" RESET, porcentaje * 100, archivo);
 
     fflush(stdout);
 }
 
+// Indica que la operación ha finalizado
 void ui_finalizar_estado()
 {
     printf("\r\033[K  " TEXT_GREEN ">> FINALIZADO" RESET "\n" SHOW_CURSOR);
 }
 
+// Muestra el resumen final de la operación
 void ui_imprimir_final(int total, Stats stats, const char *carpeta_out)
 {
     printf("\n" DIM "  ───────────────────────────────────────────────────────────────\n" RESET);

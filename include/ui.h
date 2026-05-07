@@ -3,7 +3,6 @@
 
 #include "scanner.h"
 
-// --- Colores y Estilos para UI y Main ---
 #define BOLD "\033[1m"
 #define RESET "\033[0m"
 #define DIM "\033[2m"
@@ -14,11 +13,9 @@
 #define TEXT_GRAY "\033[38;5;245m"
 #define TEXT_BLUE "\033[38;5;33m"
 
-// Color para errores
 #define CLR_RED "\033[38;5;196m"
 #define CLR_RESET RESET
 
-// Ocultar el cursor durante la barra de progreso y evitar que parpadee
 #define HIDE_CURSOR "\033[?25l"
 #define SHOW_CURSOR "\033[?25h"
 
