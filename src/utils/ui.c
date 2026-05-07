@@ -5,10 +5,21 @@
 void ui_imprimir_header()
 {
     printf(HIDE_CURSOR "\033[H\033[J");
+    printf("\n");
     printf("  ");
-    printf(BG_BLUE FG_WHITE BOLD " MEDIA COMPACTOR PRO v1.0 " RESET);
+    printf(BG_BLUE FG_WHITE BOLD " MEDIA COMPACTOR v1.0 " RESET);
     printf(TEXT_GRAY " | HEVC & libvips\n" RESET);
     printf(DIM "  ───────────────────────────────────────────────────────────────\n\n" RESET);
+}
+
+void ui_mostrar_drop_zone()
+{
+    printf(TEXT_GRAY "  ┌─────────────────────────────────────────────────────────────┐\n");
+    printf("  │                                                             │\n");
+    printf("  │    " RESET BOLD "ARRASTRA UNA CARPETA AQUÍ Y PULSA ENTER PARA EMPEZAR" RESET TEXT_GRAY "     │\n");
+    printf("  │                                                             │\n");
+    printf("  └─────────────────────────────────────────────────────────────┘\n" RESET);
+    printf(SHOW_CURSOR "\n  > " TEXT_CYAN); // Mostramos el cursor para que sepa dónde cae la ruta
 }
 
 // Icono de carga para procesos rápidos (Imágenes)

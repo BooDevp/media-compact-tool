@@ -18,11 +18,12 @@
 #define CLR_RED "\033[38;5;196m"
 #define CLR_RESET RESET
 
-// Para ocultar el cursor durante la barra de progreso y evitar que parpadee
+// Ocultar el cursor durante la barra de progreso y evitar que parpadee
 #define HIDE_CURSOR "\033[?25l"
 #define SHOW_CURSOR "\033[?25h"
 
 void ui_imprimir_header();
+void ui_mostrar_drop_zone();
 void ui_barra_progreso(const char *tipo, const char *archivo, double porcentaje);
 void ui_estado_dinamico(const char *tipo, const char *archivo);
 void ui_loading_imagen(const char *archivo);

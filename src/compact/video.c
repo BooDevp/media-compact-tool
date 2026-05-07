@@ -86,7 +86,7 @@ int compactar_video(const char *ruta_in, const char *ruta_out)
         AVFrame *frm = av_frame_alloc();
         int64_t pts = 0;
         int64_t duracion_total = ifmt->duration;
-
+        
         while (av_read_frame(ifmt, pkt) >= 0)
         {
             if (pkt->stream_index == v_idx)
@@ -99,7 +99,7 @@ int compactar_video(const char *ruta_in, const char *ruta_out)
                     double porcentaje = seg_actual / seg_total;
                     if (porcentaje > 1.0)
                         porcentaje = 1.0;
-
+                    
                     ui_barra_progreso("VIDEO", nombre_archivo, porcentaje);
                 }
 
