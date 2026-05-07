@@ -17,18 +17,29 @@
 void ajustar_ventana_limpia(int ancho, int alto)
 {
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-
-    // Definir tamaños
     COORD coord = {(short)ancho, (short)alto};
     SMALL_RECT rect = {0, 0, (short)(ancho - 1), (short)(alto - 1)};
     SMALL_RECT minRect = {0, 0, 1, 1};
     SetConsoleWindowInfo(hOut, TRUE, &minRect);
-
-    // Ajustar el buffer
     SetConsoleScreenBufferSize(hOut, coord);
-
-    // Ajustar la ventana real
     SetConsoleWindowInfo(hOut, TRUE, &rect);
+}
+
+void aplicar_estilo_fijo()
+{
+    HWND hWnd = GetConsoleWindow();
+    if (!hWnd)
+        return;
+    LONG_PTR style = GetWindowLongPtr(hWnd, GWL_STYLE);
+    style &= ~(WS_SIZEBOX | WS_MAXIMIZEBOX | WS_THICKFRAME);
+    SetWindowLongPtr(hWnd, GWL_STYLE, style);
+    ajustar_ventana_limpia(90, 30);
+    SetWindowPos(hWnd, NULL, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                     SWP_DRAWFRAME | SWP_FRAMECHANGED);
+
+    SendMessage(hWnd, WM_NCPAINT, 1, 0);
+    Sleep(30);
 }
 #endif
 
@@ -58,18 +69,18 @@ int main(int argc, char *argv[])
 {
     signal(SIGINT, handle_sigint);
 
-    #ifdef _WIN32
-        ajustar_ventana_limpia(90, 30);
-        HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-        DWORD dwMode = 0;
-        if (GetConsoleMode(hOut, &dwMode))
-        {
-            dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-            SetConsoleMode(hOut, dwMode);
-        }
-        SetConsoleOutputCP(CP_UTF8);
-        printf("\033[H\033[J");
-    #endif
+#ifdef _WIN32
+    aplicar_estilo_fijo();
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD dwMode = 0;
+    if (GetConsoleMode(hOut, &dwMode))
+    {
+        dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+        SetConsoleMode(hOut, dwMode);
+    }
+    SetConsoleOutputCP(CP_UTF8);
+    printf("\033[H\033[J");
+#endif
 
     ui_imprimir_header();
 
@@ -116,8 +127,7 @@ int main(int argc, char *argv[])
 
     printf(RESET DIM "\n  Presiona ENTER para salir..." RESET);
     printf(SHOW_CURSOR);
-    fflush(stdin);
-    getchar();
+    (void)getchar();
 
     return 0;
 }
