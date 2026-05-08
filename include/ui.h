@@ -8,6 +8,7 @@
 #define DIM "\033[2m"
 #define BG_BLUE "\033[48;5;27m"
 #define FG_WHITE "\033[38;5;255m"
+
 #define TEXT_CYAN "\033[38;5;51m"
 #define TEXT_GREEN "\033[38;5;82m"
 #define TEXT_GRAY "\033[38;5;245m"
