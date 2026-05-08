@@ -38,16 +38,22 @@ void limpiar_ruta(char *r)
 
 int main(int argc, char *argv[])
 {
-    SetConsoleTitle("Compactador");
-    signal(SIGINT, handle_sigint);
+#ifdef _WIN32    
+    CreateMutex(NULL, TRUE, "Global\\MediaCompactor_Unique_Mutex_ID");
+    if (GetLastError() == ERROR_ALREADY_EXISTS)
+    {
+        return 0;
+    }
 
-#ifdef _WIN32
+    SetConsoleTitle("Compactador");
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD dwMode = 0;
     GetConsoleMode(hOut, &dwMode);
     SetConsoleMode(hOut, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     SetConsoleOutputCP(CP_UTF8);
 #endif
+
+    signal(SIGINT, handle_sigint);
 
     if (VIPS_INIT(argv[0]))
         return 1;
