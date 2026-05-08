@@ -26,6 +26,16 @@ void ui_mostrar_drop_zone() {
     printf(SHOW_CURSOR "\n  > " TEXT_CYAN); 
 }
 
+void ui_animar_analisis(int actual) {
+    static int frame = 0;
+    const char *spinner[] = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
+    
+    printf("\033[%d;1H\033[K", ROW_TOTAL); 
+    printf("  " TEXT_GRAY "%s Analizando archivos... " RESET "(%d encontrados)", spinner[frame], actual);
+    frame = (frame + 1) % 10;
+    fflush(stdout);
+}
+
 // Actualiza la barra de progreso para el archivo actual
 void ui_barra_progreso_total(double porcentaje, int processed, int total) {
     int ancho_barra = 30;

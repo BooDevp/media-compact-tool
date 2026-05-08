@@ -25,6 +25,7 @@ void ui_barra_progreso(const char *tipo, const char *archivo, double porcentaje)
 void ui_estado_dinamico(const char *tipo, const char *archivo);
 void ui_loading_imagen(const char *archivo);
 void ui_finalizar_estado();
+void ui_animar_analisis(int actual);
 void ui_imprimir_final(int total, Stats stats, const char *carpeta_out);
 void ui_error_args();
 

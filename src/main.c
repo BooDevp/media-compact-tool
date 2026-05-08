@@ -69,13 +69,14 @@ int main(int argc, char *argv[]) {
 
     printf(HIDE_CURSOR);
 
-    int total_f = contar_media_recursiva(c_in);
+    int contador_temp = 0;
+    int total_f = contar_media_recursiva(c_in, &contador_temp);    
     Stats st = {0, 0};
     int processed = 0;
 
     if (total_f > 0) {
         ui_barra_progreso_total(0.0, 0, total_f);
-        procesar_recursivo_con_progreso(c_in, c_out, &st, total_f, &processed);
+        procesar_recursivo_con_progreso(c_in, c_out, &st, total_f, &processed);        
     }
 
     ui_finalizar_estado();

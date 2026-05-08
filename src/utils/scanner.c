@@ -137,35 +137,39 @@ int procesar_recursivo(const char *dir_in, const char *dir_out, Stats *stats)
 }
 
 // Cuenta recursivamente los archivos multimedia (imágenes o vídeos)
-int contar_media_recursiva(const char *dir_in)
+// Modifica la función para que se vea así:
+int contar_media_recursiva(const char *dir_in, int *acumulado)
 {
     DIR *dir = opendir(dir_in);
-    if (!dir)
-        return 0;
+    if (!dir) return 0;
 
-    int total = 0;
+    int total_en_esta_carpeta = 0;
     struct dirent *ent;
+    
     while ((ent = readdir(dir)) != NULL)
     {
-        if (ent->d_name[0] == '.')
-            continue;
+        if (ent->d_name[0] == '.') continue;
 
         char ruta_in[MAX_PATH_LEN];
         snprintf(ruta_in, sizeof(ruta_in), "%s/%s", dir_in, ent->d_name);
 
         if (es_directorio(ruta_in))
         {
-            total += contar_media_recursiva(ruta_in);
+            total_en_esta_carpeta += contar_media_recursiva(ruta_in, acumulado);
         }
         else
         {
-            if (es_imagen_media(ruta_in) || es_video_media(ruta_in))
-                total++;
+            if (es_imagen_media(ruta_in) || es_video_media(ruta_in)) {
+                total_en_esta_carpeta++;
+                (*acumulado)++;
+                // Animamos cada vez que encontramos algo
+                ui_animar_analisis(*acumulado);
+            }
         }
     }
 
     closedir(dir);
-    return total;
+    return total_en_esta_carpeta;
 }
 
 // Versión de procesar_recursivo que actualiza el progreso global
