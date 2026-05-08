@@ -38,6 +38,7 @@ void limpiar_ruta(char *r)
 
 int main(int argc, char *argv[])
 {
+    SetConsoleTitle("Compactador");
     signal(SIGINT, handle_sigint);
 
 #ifdef _WIN32
