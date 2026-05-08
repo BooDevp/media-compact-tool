@@ -84,12 +84,13 @@ void ui_finalizar_estado() {
 void ui_imprimir_final(int total, Stats stats, const char *carpeta_out) {
     printf("\033[%d;1H", ROW_SUMMARY);
     printf(DIM "  ───────────────────────────────────────────────────────────────\n" RESET);
+    printf("\n");
     printf(BOLD TEXT_CYAN "  RESUMEN DE OPERACIÓN\n" RESET);
-    printf(TEXT_GRAY "  ┌──────────────────────────────────────────┐\n" RESET);
-    printf(TEXT_GRAY "  │  " RESET "Imágenes:  " BOLD TEXT_GREEN "%-25d" RESET TEXT_GRAY "    │\n" RESET, stats.imagenes);
-    printf(TEXT_GRAY "  │  " RESET "Vídeos:    " BOLD TEXT_GREEN "%-25d" RESET TEXT_GRAY "    │\n" RESET, stats.videos);
-    printf(TEXT_GRAY "  │  " RESET "Total:     " BOLD TEXT_CYAN "%-25d" RESET TEXT_GRAY "    │\n" RESET, total);
-    printf(TEXT_GRAY "  └──────────────────────────────────────────┘\n" RESET);
+    printf(TEXT_GRAY "  ┌───────────────────────────────────────────────────┐\n" RESET);
+    printf(TEXT_GRAY "  │  " RESET "Imágenes optimizadas:   " BOLD TEXT_GREEN "%-25d" RESET TEXT_GRAY "│\n" RESET, stats.imagenes);
+    printf(TEXT_GRAY "  │  " RESET "Vídeos   optimizados:   " BOLD TEXT_GREEN "%-25d" RESET TEXT_GRAY "│\n" RESET, stats.videos);
+    printf(TEXT_GRAY "  │  " RESET "Total:                  " BOLD TEXT_CYAN "%-25d" RESET TEXT_GRAY "│\n" RESET, total);
+    printf(TEXT_GRAY "  └───────────────────────────────────────────────────┘\n" RESET);
     printf("\n  " BOLD "Destino: " RESET TEXT_GRAY "%s\n" RESET, carpeta_out);
 }
 

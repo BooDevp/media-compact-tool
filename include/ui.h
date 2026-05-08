@@ -28,7 +28,6 @@ void ui_finalizar_estado();
 void ui_animar_analisis(int actual);
 void ui_imprimir_final(int total, Stats stats, const char *carpeta_out);
 void ui_error_args();
-
 void ui_barra_progreso_total(double porcentaje, int processed, int total);
 
 #endif
