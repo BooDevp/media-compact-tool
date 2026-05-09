@@ -1,17 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../../include/ui.h"
-#include "../../include/config.h"
+#include <ui.h>
+#include <config.h>
 
-// Mapa de coordenadas para la interfaz de usuario en terminal
-#define ROW_START 6
-#define ROW_TOTAL 7    // Fila del Progreso Total
-#define ROW_FILE 9     // Fila del Archivo actual
-#define ROW_SUMMARY 12 // El resumen empieza aquí
+#define ROW_TOTAL 7
+#define ROW_FILE 9
+#define ROW_SUMMARY 12
 
-// Funciones para mostrar la interfaz de usuario en terminal con barras de progreso y estados dinámicos
-void ui_imprimir_header()
+void ui_imprimir_header(void)
 {
     printf("\033[1;1H");
     printf("\n  " BG_BLUE FG_WHITE BOLD " MEDIA COMPACTOR v1.0 " RESET);
@@ -19,8 +16,7 @@ void ui_imprimir_header()
     printf(DIM "  ───────────────────────────────────────────────────────────────\n" RESET);
 }
 
-// Muestra una zona de "drop" para que el usuario arrastre la carpeta y pulse ENTER
-void ui_mostrar_drop_zone()
+void ui_mostrar_drop_zone(void)
 {
     printf("\n" TEXT_GRAY "  ┌─────────────────────────────────────────────────────────────┐\n");
     printf("  │                                                             │\n");
@@ -41,7 +37,6 @@ void ui_animar_analisis(int actual)
     fflush(stdout);
 }
 
-// Actualiza la barra de progreso para el archivo actual
 void ui_barra_progreso_total(double porcentaje, int processed, int total)
 {
     int ancho_barra = 30;
@@ -60,7 +55,6 @@ void ui_barra_progreso_total(double porcentaje, int processed, int total)
     fflush(stdout);
 }
 
-// Actualiza el estado dinámico para el archivo que se está procesando
 void ui_loading_imagen(const char *archivo)
 {
     static int frame = 0;
@@ -71,7 +65,6 @@ void ui_loading_imagen(const char *archivo)
     fflush(stdout);
 }
 
-// Actualiza la barra de progreso para un vídeo específico
 void ui_barra_progreso(const char *tipo, const char *archivo, double porcentaje)
 {
     int ancho_barra = 15;
@@ -86,15 +79,13 @@ void ui_barra_progreso(const char *tipo, const char *archivo, double porcentaje)
     fflush(stdout);
 }
 
-//  Limpia la línea de estado al finalizar el proceso
-void ui_finalizar_estado()
+void ui_finalizar_estado(void)
 {
     printf("\033[%d;1H\033[K", ROW_FILE);
     printf("\033[%d;1H  " TEXT_GREEN ">> PROCESO COMPLETADO" RESET "\n", ROW_SUMMARY - 2);
 }
 
-// Imprime el resumen final con estadísticas de imágenes y vídeos procesados
-void ui_imprimir_final(int total, Stats stats, const char *carpeta_out)
+void ui_imprimir_final(int total, Estadisticas stats, const char *carpeta_out)
 {
     printf("\033[%d;1H", ROW_SUMMARY);
     printf(DIM "  ───────────────────────────────────────────────────────────────\n" RESET);
@@ -108,19 +99,14 @@ void ui_imprimir_final(int total, Stats stats, const char *carpeta_out)
     if (stats.imagenes > 0 || stats.videos > 0)
     {
         printf("\n  " BOLD "Destino: " RESET TEXT_GRAY "%s\n" RESET, carpeta_out);
-        #ifdef _WIN32
-            char comando[MAX_PATH_LEN + 20];
-            snprintf(comando, sizeof(comando), "explorer \"%s\"", carpeta_out);
-            system(comando);
-        #endif
-    }else{
+#ifdef _WIN32
+        char comando[MAX_PATH_LEN + 20];
+        snprintf(comando, sizeof(comando), "explorer \"%s\"", carpeta_out);
+        system(comando);
+#endif
+    }
+    else
+    {
         printf("\n  " BOLD "No se procesaron archivos multimedia." RESET "\n");
     }
-}
-
-// Muestra un mensaje de error si no se han proporcionado argumentos válidos
-void ui_error_args()
-{
-    printf(SHOW_CURSOR "\n  \033[41m ERROR \033[0m No se ha proporcionado una carpeta válida.\n");
-    printf(DIM "  Asegúrate de arrastrar la carpeta correctamente.\n\n" RESET);
 }

@@ -6,13 +6,12 @@
 #include <vips/vips.h>
 #include <libavformat/avformat.h>
 
-#include "../../include/scanner.h"
-#include "../../include/image.h"
-#include "../../include/video.h"
-#include "../../include/config.h"
-#include "../../include/ui.h"
+#include <scanner.h>
+#include <imagen.h>
+#include <video.h>
+#include <config.h>
+#include <ui.h>
 
-// Asegura que exista el directorio destino, crea si hace falta
 static void asegurar_directorio(const char *ruta)
 {
 #ifdef _WIN32
@@ -22,7 +21,6 @@ static void asegurar_directorio(const char *ruta)
 #endif
 }
 
-// Comprueba si la ruta es un directorio
 static int es_directorio(const char *ruta)
 {
     struct stat st;
@@ -31,13 +29,11 @@ static int es_directorio(const char *ruta)
     return 0;
 }
 
-// Devuelve 1 si libvips puede cargar la ruta como imagen
 static int es_imagen_media(const char *ruta)
 {
     return vips_foreign_find_load(ruta) ? 1 : 0;
 }
 
-// Devuelve 1 si ffmpeg puede abrir la ruta como un contenedor válido
 static int es_video_media(const char *ruta)
 {
     AVFormatContext *pCtx = NULL;
@@ -50,8 +46,7 @@ static int es_video_media(const char *ruta)
     return ok;
 }
 
-// Procesa un único archivo (imagen o vídeo) y actualiza las estadísticas
-static int procesar_archivo(const char *ruta_in, const char *nombre_archivo, const char *dir_out, Stats *stats)
+static int procesar_archivo(const char *ruta_in, const char *nombre_archivo, const char *dir_out, Estadisticas *stats)
 {
     char nombre_base[MAX_NAME_LEN];
     strncpy(nombre_base, nombre_archivo, MAX_NAME_LEN);
@@ -94,8 +89,7 @@ static int procesar_archivo(const char *ruta_in, const char *nombre_archivo, con
     return 0;
 }
 
-// Recorre el directorio de entrada recursivamente y procesa archivos multimedia
-int procesar_recursivo(const char *dir_in, const char *dir_out, Stats *stats)
+static int procesar_recursivo_interno(const char *dir_in, const char *dir_out, Estadisticas *stats, int total_files, int *processed_count)
 {
     DIR *dir = opendir(dir_in);
     if (!dir)
@@ -116,7 +110,7 @@ int procesar_recursivo(const char *dir_in, const char *dir_out, Stats *stats)
         if (es_directorio(ruta_in))
         {
             snprintf(ruta_out, sizeof(ruta_out), "%s/%s", dir_out, ent->d_name);
-            archivos_en_rama += procesar_recursivo(ruta_in, ruta_out, stats);
+            archivos_en_rama += procesar_recursivo_interno(ruta_in, ruta_out, stats, total_files, processed_count);
         }
         else
         {
@@ -124,19 +118,32 @@ int procesar_recursivo(const char *dir_in, const char *dir_out, Stats *stats)
             {
                 archivos_en_rama++;
             }
+            if (processed_count && total_files > 0)
+            {
+                (*processed_count)++;
+                double pct = ((double)(*processed_count)) / (double)total_files;
+                ui_barra_progreso_total(pct, *processed_count, total_files);
+            }
         }
     }
     closedir(dir);
 
     if (archivos_en_rama == 0)
-    {
         rmdir(dir_out);
-    }
 
     return archivos_en_rama;
 }
 
-// Cuenta recursivamente los archivos multimedia (imágenes o vídeos)
+int procesar_recursivo(const char *dir_in, const char *dir_out, Estadisticas *stats)
+{
+    return procesar_recursivo_interno(dir_in, dir_out, stats, 0, NULL);
+}
+
+int procesar_recursivo_con_progreso(const char *dir_in, const char *dir_out, Estadisticas *stats, int total_files, int *processed_count)
+{
+    return procesar_recursivo_interno(dir_in, dir_out, stats, total_files, processed_count);
+}
+
 int contar_media_recursiva(const char *dir_in, int *acumulado)
 {
     DIR *dir = opendir(dir_in);
@@ -144,7 +151,7 @@ int contar_media_recursiva(const char *dir_in, int *acumulado)
 
     int total_en_esta_carpeta = 0;
     struct dirent *ent;
-    
+
     while ((ent = readdir(dir)) != NULL)
     {
         if (ent->d_name[0] == '.') continue;
@@ -158,9 +165,10 @@ int contar_media_recursiva(const char *dir_in, int *acumulado)
         }
         else
         {
-            if (es_imagen_media(ruta_in) || es_video_media(ruta_in)) {
+            if (es_imagen_media(ruta_in) || es_video_media(ruta_in))
+            {
                 total_en_esta_carpeta++;
-                (*acumulado)++;                
+                (*acumulado)++;
                 ui_animar_analisis(*acumulado);
             }
         }
@@ -168,55 +176,4 @@ int contar_media_recursiva(const char *dir_in, int *acumulado)
 
     closedir(dir);
     return total_en_esta_carpeta;
-}
-
-// Versión de procesar_recursivo que actualiza el progreso global
-int procesar_recursivo_con_progreso(const char *dir_in, const char *dir_out, Stats *stats, int total_files, int *processed_count)
-{
-    DIR *dir = opendir(dir_in);
-    if (!dir)
-        return 0;
-
-    asegurar_directorio(dir_out);
-    int archivos_en_rama = 0;
-    struct dirent *ent;
-
-    while ((ent = readdir(dir)) != NULL)
-    {
-        if (ent->d_name[0] == '.')
-            continue;
-
-        char ruta_in[MAX_PATH_LEN], ruta_out[MAX_PATH_LEN];
-        snprintf(ruta_in, sizeof(ruta_in), "%s/%s", dir_in, ent->d_name);
-
-        if (es_directorio(ruta_in))
-        {
-            snprintf(ruta_out, sizeof(ruta_out), "%s/%s", dir_out, ent->d_name);
-            archivos_en_rama += procesar_recursivo_con_progreso(ruta_in, ruta_out, stats, total_files, processed_count);
-        }
-        else
-        {
-            if (es_imagen_media(ruta_in) || es_video_media(ruta_in))
-            {
-                if (procesar_archivo(ruta_in, ent->d_name, dir_out, stats))
-                {
-                    archivos_en_rama++;
-                }
-                if (processed_count && total_files > 0)
-                {
-                    (*processed_count)++;
-                    double pct = ((double)(*processed_count)) / (double)total_files;
-                    ui_barra_progreso_total(pct, *processed_count, total_files);
-                }
-            }
-        }
-    }
-    closedir(dir);
-
-    if (archivos_en_rama == 0)
-    {
-        rmdir(dir_out);
-    }
-
-    return archivos_en_rama;
 }

@@ -4,8 +4,8 @@
 #include <libavcodec/avcodec.h>
 #include <libavutil/opt.h>
 
-#include "../../include/config.h"
-#include "../../include/ui.h"
+#include <config.h>
+#include <ui.h>
 
 // Codifica y escribe paquetes desde un frame al contenedor de salida
 static int escribir_frame(AVFrame *frame, AVCodecContext *enc, AVStream *st, AVFormatContext *ofmt)

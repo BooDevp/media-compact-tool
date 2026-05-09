@@ -9,51 +9,31 @@
 #include <conio.h>
 #endif
 
-#include "../include/scanner.h"
-#include "../include/config.h"
-#include "../include/ui.h"
+#include <scanner.h>
+#include <config.h>
+#include <ui.h>
+#include <str_util.h>
+#include <sistema.h>
 
-void handle_sigint(int sig)
+static void manejar_sigint(int sig)
 {
     printf(SHOW_CURSOR "\n\n  Abortado por el usuario.\n");
     vips_shutdown();
     exit(0);
 }
 
-void limpiar_ruta(char *r)
-{
-    r[strcspn(r, "\n")] = 0;
-    r[strcspn(r, "\r")] = 0;
-    if (r[0] == '"')
-    {
-        memmove(r, r + 1, strlen(r));
-        size_t l = strlen(r);
-        if (l > 0 && r[l - 1] == '"')
-            r[l - 1] = 0;
-    }
-    size_t len = strlen(r);
-    if (len > 0 && (r[len - 1] == '/' || r[len - 1] == '\\'))
-        r[len - 1] = '\0';
-}
-
 int main(int argc, char *argv[])
 {
-#ifdef _WIN32    
+#ifdef _WIN32
     CreateMutex(NULL, TRUE, "Global\\MediaCompactor_Unique_Mutex_ID");
     if (GetLastError() == ERROR_ALREADY_EXISTS)
     {
         return 0;
     }
-
-    SetConsoleTitle("Compactador");
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD dwMode = 0;
-    GetConsoleMode(hOut, &dwMode);
-    SetConsoleMode(hOut, dwMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
-    SetConsoleOutputCP(CP_UTF8);
+    configurar_consola();
 #endif
 
-    signal(SIGINT, handle_sigint);
+    signal(SIGINT, manejar_sigint);
 
     if (VIPS_INIT(argv[0]))
         return 1;
@@ -63,35 +43,35 @@ int main(int argc, char *argv[])
         printf("\033[H\033[J");
         ui_imprimir_header();
 
-        char c_in[MAX_PATH_LEN] = {0};
-        char c_out[MAX_PATH_LEN + 20];
+        char entrada[MAX_PATH_LEN] = {0};
+        char salida[MAX_PATH_LEN + 20];
 
         ui_mostrar_drop_zone();
 
-        if (fgets(c_in, MAX_PATH_LEN, stdin) == NULL)
+        if (fgets(entrada, MAX_PATH_LEN, stdin) == NULL)
             break;
-        limpiar_ruta(c_in);
+        limpiar_ruta(entrada);
 
-        if (strlen(c_in) == 0)
+        if (strlen(entrada) == 0)
             continue;
 
         printf("\033[H\033[J");
         ui_imprimir_header();
-        printf("\n  " TEXT_GRAY "Carpeta: " RESET TEXT_CYAN "%s" RESET "\n", c_in);
+        printf("\n  " TEXT_GRAY "Carpeta: " RESET TEXT_CYAN "%s" RESET "\n", entrada);
 
-        snprintf(c_out, sizeof(c_out), "%s%s", c_in, SUFIJO_CARPETA);
+        snprintf(salida, sizeof(salida), "%s%s", entrada, SUFIJO_CARPETA);
         printf(HIDE_CURSOR);
 
         int contador_temp = 0;
-        int total_f = contar_media_recursiva(c_in, &contador_temp);
+        int total = contar_media_recursiva(entrada, &contador_temp);
 
-        Stats st = {0, 0};
-        int processed = 0;
+        Estadisticas st = {0, 0};
+        int procesados = 0;
 
-        if (total_f > 0)
+        if (total > 0)
         {
-            ui_barra_progreso_total(0.0, 0, total_f);
-            procesar_recursivo_con_progreso(c_in, c_out, &st, total_f, &processed);
+            ui_barra_progreso_total(0.0, 0, total);
+            procesar_recursivo_con_progreso(entrada, salida, &st, total, &procesados);
         }
         else
         {
@@ -99,7 +79,7 @@ int main(int argc, char *argv[])
         }
 
         ui_finalizar_estado();
-        ui_imprimir_final(processed, st, c_out);
+        ui_imprimir_final(procesados, st, salida);
 
         printf(RESET "\n\n " RESET " Presiona " TEXT_CYAN "ENTER" RESET " para continuar ...");
         printf(SHOW_CURSOR);

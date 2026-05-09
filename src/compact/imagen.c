@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <vips/vips.h>
-#include "../../include/config.h"
+#include <config.h>
 
 // Comprime una imagen JPEG con libvips y marca el archivo como optimizado
 int compactar_imagen_jpg(const char *ruta_in, const char *ruta_out)
