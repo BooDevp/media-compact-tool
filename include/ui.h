@@ -3,23 +3,37 @@
 
 #include "types.h"
 
-#define BOLD "\033[1m"
-#define RESET "\033[0m"
-#define DIM "\033[2m"
-#define BG_BLUE "\033[48;5;27m"
-#define FG_WHITE "\033[38;5;255m"
+// ── Formato de texto ──
+#define CLR_BOLD  "\033[1m"
+#define CLR_DIM   "\033[2m"
+#define CLR_RESET "\033[0m"
 
-#define TEXT_CYAN "\033[38;5;51m"
-#define TEXT_GREEN "\033[38;5;82m"
-#define TEXT_GRAY "\033[38;5;245m"
-#define TEXT_BLUE "\033[38;5;33m"
+// ── Paleta Ocean (compatible Windows Terminal) ──
+#define CLR_ACCENT  "\033[38;5;45m"    // Cian activo
+#define CLR_INFO    "\033[38;5;75m"    // Azul informacion
+#define CLR_SUCCESS "\033[38;5;48m"    // Verde exito
+#define CLR_MUTED   "\033[38;5;243m"   // Gris secundario
+#define CLR_BORDER  "\033[38;5;236m"   // Gris bordes
+#define CLR_WARN    "\033[38;5;221m"   // Amarillo aviso
+#define CLR_HL_BG   "\033[48;5;17m"    // Fondo header
+#define CLR_HL_FG   "\033[38;5;255m"   // Texto header
 
-#define CLR_RED "\033[38;5;196m"
-#define CLR_RESET RESET
+// ── Alias retrocompatibles (para main.c y scanner.c) ──
+#define BOLD      CLR_BOLD
+#define DIM       CLR_DIM
+#define RESET     CLR_RESET
+#define TEXT_CYAN CLR_ACCENT
+#define TEXT_GREEN CLR_SUCCESS
+#define TEXT_GRAY CLR_MUTED
+#define TEXT_BLUE CLR_INFO
+#define BG_BLUE   CLR_HL_BG
+#define FG_WHITE  CLR_HL_FG
 
+// ── Control de cursor ──
 #define HIDE_CURSOR "\033[?25l"
 #define SHOW_CURSOR "\033[?25h"
 
+// ── Funciones de UI ──
 void ui_imprimir_header(void);
 void ui_mostrar_drop_zone(void);
 void ui_barra_progreso(const char *tipo, const char *archivo, double porcentaje);

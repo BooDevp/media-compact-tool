@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
 
         if (es_directorio(entrada))
         {
-            printf("\n  " TEXT_GRAY "Carpeta: " RESET TEXT_CYAN "%s" RESET "\n", entrada);
+            printf("\n\n  " TEXT_GRAY " Carpeta: " RESET TEXT_CYAN "%s" RESET "\n", entrada);
 
             snprintf(salida, sizeof(salida), "%s%s", entrada, SUFIJO_CARPETA);
 
@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            printf("\n  " TEXT_GRAY "Archivo: " RESET TEXT_CYAN "%s" RESET "\n", entrada);
+            printf("\n\n  " TEXT_GRAY " Archivo: " RESET TEXT_CYAN "%s" RESET "\n", entrada);
 
             generar_ruta_salida_archivo(entrada, salida, sizeof(salida));
             procesados = procesar_archivo_unico(entrada, salida, &st);
