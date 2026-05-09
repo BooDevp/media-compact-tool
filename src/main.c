@@ -57,29 +57,43 @@ int main(int argc, char *argv[])
 
         printf("\033[H\033[J");
         ui_imprimir_header();
-        printf("\n  " TEXT_GRAY "Carpeta: " RESET TEXT_CYAN "%s" RESET "\n", entrada);
-
-        snprintf(salida, sizeof(salida), "%s%s", entrada, SUFIJO_CARPETA);
         printf(HIDE_CURSOR);
-
-        int contador_temp = 0;
-        int total = contar_media_recursiva(entrada, &contador_temp);
 
         Estadisticas st = {0, 0};
         int procesados = 0;
 
-        if (total > 0)
+        if (es_directorio(entrada))
         {
-            ui_barra_progreso_total(0.0, 0, total);
-            procesar_recursivo_con_progreso(entrada, salida, &st, total, &procesados);
+            printf("\n  " TEXT_GRAY "Carpeta: " RESET TEXT_CYAN "%s" RESET "\n", entrada);
+
+            snprintf(salida, sizeof(salida), "%s%s", entrada, SUFIJO_CARPETA);
+
+            int contador_temp = 0;
+            int total = contar_media_recursiva(entrada, &contador_temp);
+
+            if (total > 0)
+            {
+                ui_barra_progreso_total(0.0, 0, total);
+                procesar_recursivo_con_progreso(entrada, salida, &st, total, &procesados);
+            }
+            else
+            {
+                printf("\n  " TEXT_GRAY "No se encontraron archivos multimedia compatibles." RESET "\n");
+            }
+
+            ui_finalizar_estado();
+            ui_imprimir_final(procesados, st, salida, 1);
         }
         else
         {
-            printf("\n  " TEXT_GRAY "No se encontraron archivos multimedia compatibles." RESET "\n");
-        }
+            printf("\n  " TEXT_GRAY "Archivo: " RESET TEXT_CYAN "%s" RESET "\n", entrada);
 
-        ui_finalizar_estado();
-        ui_imprimir_final(procesados, st, salida);
+            generar_ruta_salida_archivo(entrada, salida, sizeof(salida));
+            procesados = procesar_archivo_unico(entrada, salida, &st);
+
+            ui_finalizar_estado();
+            ui_imprimir_final(procesados, st, salida, 0);
+        }
 
         printf(RESET "\n\n " RESET " Presiona " TEXT_CYAN "ENTER" RESET " para continuar ...");
         printf(SHOW_CURSOR);

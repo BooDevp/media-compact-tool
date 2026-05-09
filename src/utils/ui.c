@@ -18,11 +18,11 @@ void ui_imprimir_header(void)
 
 void ui_mostrar_drop_zone(void)
 {
-    printf("\n" TEXT_GRAY "  ┌─────────────────────────────────────────────────────────────┐\n");
-    printf("  │                                                             │\n");
-    printf("  │    " RESET BOLD "ARRASTRA UNA CARPETA AQUÍ Y PULSA ENTER PARA EMPEZAR" RESET TEXT_GRAY "     │\n");
-    printf("  │                                                             │\n");
-    printf("  └─────────────────────────────────────────────────────────────┘\n" RESET);
+    printf("\n" TEXT_GRAY "  ┌─────────────────────────────────────────────────────────────────────┐\n");
+    printf("  │                                                                     │\n");
+    printf("  │    " RESET BOLD "ARRASTRA UNA CARPETA/ARCHIVO AQUÍ Y PULSA ENTER PARA EMPEZAR" RESET TEXT_GRAY "     │\n");
+    printf("  │                                                                     │\n");
+    printf("  └─────────────────────────────────────────────────────────────────────┘\n" RESET);
     printf(SHOW_CURSOR "\n  > " TEXT_CYAN);
 }
 
@@ -85,7 +85,7 @@ void ui_finalizar_estado(void)
     printf("\033[%d;1H  " TEXT_GREEN ">> PROCESO COMPLETADO" RESET "\n", ROW_SUMMARY - 2);
 }
 
-void ui_imprimir_final(int total, Estadisticas stats, const char *carpeta_out)
+void ui_imprimir_final(int total, Estadisticas stats, const char *destino, int abrir_explorador)
 {
     printf("\033[%d;1H", ROW_SUMMARY);
     printf(DIM "  ───────────────────────────────────────────────────────────────\n" RESET);
@@ -98,11 +98,14 @@ void ui_imprimir_final(int total, Estadisticas stats, const char *carpeta_out)
     printf(TEXT_GRAY "  └───────────────────────────────────────────────────┘\n" RESET);
     if (stats.imagenes > 0 || stats.videos > 0)
     {
-        printf("\n  " BOLD "Destino: " RESET TEXT_GRAY "%s\n" RESET, carpeta_out);
+        printf("\n  " BOLD "Destino: " RESET TEXT_GRAY "%s\n" RESET, destino);
 #ifdef _WIN32
-        char comando[MAX_PATH_LEN + 20];
-        snprintf(comando, sizeof(comando), "explorer \"%s\"", carpeta_out);
-        system(comando);
+        if (abrir_explorador)
+        {
+            char comando[MAX_PATH_LEN + 20];
+            snprintf(comando, sizeof(comando), "explorer \"%s\"", destino);
+            system(comando);
+        }
 #endif
     }
     else

@@ -21,7 +21,7 @@ static void asegurar_directorio(const char *ruta)
 #endif
 }
 
-static int es_directorio(const char *ruta)
+int es_directorio(const char *ruta)
 {
     struct stat st;
     if (stat(ruta, &st) == 0)
@@ -132,6 +132,37 @@ static int procesar_recursivo_interno(const char *dir_in, const char *dir_out, E
         rmdir(dir_out);
 
     return archivos_en_rama;
+}
+
+int procesar_archivo_unico(const char *ruta_in, const char *ruta_out, Estadisticas *stats)
+{
+    const char *nombre = strrchr(ruta_in, '/');
+    if (!nombre) nombre = strrchr(ruta_in, '\\');
+    if (nombre) nombre++; else nombre = ruta_in;
+
+    if (es_imagen_media(ruta_in))
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            ui_loading_imagen(nombre);
+            usleep(20000);
+        }
+        if (compactar_imagen_jpg(ruta_in, ruta_out))
+        {
+            stats->imagenes++;
+            return 1;
+        }
+    }
+    else if (es_video_media(ruta_in))
+    {
+        ui_barra_progreso("VIDEO", nombre, 0.0);
+        if (compactar_video(ruta_in, ruta_out))
+        {
+            stats->videos++;
+            return 1;
+        }
+    }
+    return 0;
 }
 
 int procesar_recursivo(const char *dir_in, const char *dir_out, Estadisticas *stats)
