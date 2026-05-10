@@ -7,7 +7,14 @@
 
 // ── Configuracion de imagenes ──
 #define IMG_QUALITY  75
-#define IMG_EXT_OUT  ".jpg"
+
+// ── Compresion adaptativa ──
+#define SSIM_UMBRAL_1   0.975
+#define SSIM_UMBRAL_2   0.95
+#define AHORRO_MINIMO   20
+#define IMG_QUALITY_1   75
+#define IMG_QUALITY_2   90
+#define PNG_MAX_COLORES 256
 
 // ── Configuracion de video ──
 #define VID_CRF     "24"

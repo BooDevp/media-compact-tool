@@ -59,15 +59,16 @@ static int procesar_archivo(const char *ruta_in, const char *nombre_archivo, con
 
     if (es_imagen_media(ruta_in))
     {
-        for (int i = 0; i < 5; i++)
-        {
-            ui_loading_imagen(nombre_archivo);
-            usleep(20000);
-        }
+        VipsImage *temp = vips_image_new_from_file(ruta_in, "access", VIPS_ACCESS_SEQUENTIAL, NULL);
+        int has_alpha = temp ? vips_image_hasalpha(temp) : 0;
+        if (temp) g_object_unref(temp);
 
-        snprintf(ruta_out, sizeof(ruta_out), "%s/%s%s", dir_out, nombre_base, IMG_EXT_OUT);
+        const char *ext = has_alpha ? ".png" : ".jpg";
+        snprintf(ruta_out, sizeof(ruta_out), "%s/%s%s", dir_out, nombre_base, ext);
 
-        if (compactar_imagen_jpg(ruta_in, ruta_out))
+        ui_loading_imagen(nombre_archivo);
+
+        if (compactar_imagen_adaptativo(ruta_in, ruta_out))
         {
             stats->imagenes++;
             return 1;
@@ -142,12 +143,27 @@ int procesar_archivo_unico(const char *ruta_in, const char *ruta_out, Estadistic
 
     if (es_imagen_media(ruta_in))
     {
+        VipsImage *temp = vips_image_new_from_file(ruta_in, "access", VIPS_ACCESS_SEQUENTIAL, NULL);
+        int has_alpha = temp ? vips_image_hasalpha(temp) : 0;
+        if (temp) g_object_unref(temp);
+
+        char salida_local[MAX_PATH_LEN + 10];
+        strncpy(salida_local, ruta_out, sizeof(salida_local) - 1);
+        salida_local[sizeof(salida_local) - 1] = '\0';
+
+        const char *ext = has_alpha ? ".png" : ".jpg";
+        char *dot = strrchr(salida_local, '.');
+        if (dot)
+            strcpy(dot, ext);
+        else
+            strncat(salida_local, ext, sizeof(salida_local) - strlen(salida_local) - 1);
+
         for (int i = 0; i < 5; i++)
         {
             ui_loading_imagen(nombre);
             usleep(20000);
         }
-        if (compactar_imagen_jpg(ruta_in, ruta_out))
+        if (compactar_imagen_adaptativo(ruta_in, salida_local))
         {
             stats->imagenes++;
             return 1;

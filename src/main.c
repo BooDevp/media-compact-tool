@@ -14,9 +14,11 @@
 #include <ui.h>
 #include <str_util.h>
 #include <sistema.h>
+#include <log.h>
 
 static void manejar_sigint(int sig)
 {
+    log_close();
     printf(SHOW_CURSOR "\n\n  Abortado por el usuario.\n");
     vips_shutdown();
     exit(0);
@@ -37,6 +39,8 @@ int main(int argc, char *argv[])
 
     if (VIPS_INIT(argv[0]))
         return 1;
+
+    log_init();
 
     while (1)
     {
@@ -105,6 +109,7 @@ int main(int argc, char *argv[])
         getchar();
     }
 
+    log_close();
     vips_shutdown();
     return 0;
 }
