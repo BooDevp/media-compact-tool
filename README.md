@@ -83,7 +83,7 @@ cd compactador
 make
 ```
 
-El Makefile busca automáticamente todos los `.c` en `src/` y sus subdirectorios. El ejecutable se genera como `compactador.exe`.
+El Makefile busca automáticamente todos los `.c` en `src/` y sus subdirectorios. El ejecutable se genera como `compactador.exe` con el icono de `src/logo.ico` embebido (visible en Explorer, barra de tareas y Alt+Tab).
 
 Para limpiar:
 
@@ -184,6 +184,8 @@ compactador/
 │   └── ui.h                   API de interfaz de terminal
 ├── src/                        Código fuente
 │   ├── main.c                 Punto de entrada y bucle principal
+│   ├── logo.ico               Icono de la aplicación
+│   ├── resources.rc            Recurso Windows (icono embebido)
 │   ├── compact/
 │   │   ├── imagen.c           SSIM + compresión adaptativa JPEG/PNG
 │   │   └── video.c            Compresión de vídeo con ffmpeg
