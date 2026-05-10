@@ -57,7 +57,7 @@ int compactar_video(const char *ruta_in, const char *ruta_out)
     {
         log_printf("  VIDEO: saltado, ya contiene firma");
         avformat_close_input(&ifmt);
-        return 0;
+        return 2;
     }
 
     int tiene_video = 0;

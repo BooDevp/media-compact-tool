@@ -59,6 +59,8 @@ typedef struct
     char ruta_drop[MAX_PATH_LEN];
     HWND hwnd;
     HANDLE hThread;
+    int es_dir;
+    volatile int contador_anim;
 } AppState;
 
 static AppState g_estado = {0};
@@ -124,7 +126,7 @@ typedef struct
 static DWORD WINAPI ProcesarThread(LPVOID lpParam)
 {
     ThreadParams *p = (ThreadParams *)lpParam;
-    Estadisticas stats = {0, 0};
+    Estadisticas stats = {0, 0, 0};
     int procesados = 0;
 
     if (p->es_directorio)
@@ -176,6 +178,7 @@ static void iniciar_procesamiento(void)
     else
         generar_ruta_salida_archivo(g_estado.ruta_drop, p->salida, sizeof(p->salida));
 
+    g_estado.es_dir = p->es_directorio;
     g_estado.vista = VISTA_PROCESANDO;
     g_estado.pct_total = 0.0;
     g_estado.procesados = 0;
@@ -183,6 +186,7 @@ static void iniciar_procesamiento(void)
     g_estado.pct_archivo = 0.0;
     g_estado.archivo_actual[0] = '\0';
     g_estado.tipo_actual[0] = '\0';
+    g_estado.contador_anim = 0;
 
     mostrar_ventana_botones(g_estado.hwnd);
 
@@ -279,11 +283,9 @@ static void dibujar_escaparate(HDC hdc, int w, int h)
 
 static void dibujar_vista_drop(HDC hdc, int w, int h)
 {
-    // Instruccion
-    dibujar_texto_centrado(hdc, 52, w, "ARRASTA UN ARCHIVO O CARPETA AQUI", COL_MUTED, 12, 0);
+    dibujar_texto_centrado(hdc, 44, w, "", COL_MUTED, 11, 0);
 
-    // Area de drop
-    int dl = 50, dr = w - 50, dt = 80, db = 185;
+    int dl = 60, dr = w - 60, dt = 70, db = 200;
     HBRUSH hDropBrush = CreateSolidBrush(COL_DROP_BG);
     HPEN hDropPen = CreatePen(PS_DASH, 1, COL_ACCENT);
     HGDIOBJ hOldBrush = SelectObject(hdc, hDropBrush);
@@ -294,26 +296,33 @@ static void dibujar_vista_drop(HDC hdc, int w, int h)
     DeleteObject(hDropBrush);
     DeleteObject(hDropPen);
 
+    HFONT hFont = CreateFontA(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+                              DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                              DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
+    HFONT hOldFont = SelectObject(hdc, hFont);
+
+    RECT rcText = {dl + 15, dt, dr - 15, db};
     if (g_estado.ruta_drop[0])
     {
-        RECT rcPath = {dl + 10, dt + 35, dr - 10, db - 10};
         SetTextColor(hdc, COL_WHITE);
         SetBkMode(hdc, TRANSPARENT);
         char buf[MAX_PATH_LEN];
         int len = strlen(g_estado.ruta_drop);
-        if (len > 55)
-            snprintf(buf, sizeof(buf), "...%s", g_estado.ruta_drop + len - 52);
+        if (len > 50)
+            snprintf(buf, sizeof(buf), "...%s", g_estado.ruta_drop + len - 47);
         else
             snprintf(buf, sizeof(buf), "%s", g_estado.ruta_drop);
-        DrawTextA(hdc, buf, -1, &rcPath, DT_CENTER | DT_SINGLELINE | DT_PATH_ELLIPSIS);
+        DrawTextA(hdc, buf, -1, &rcText, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_PATH_ELLIPSIS);
     }
     else
     {
-        RECT rcPh = {dl + 10, dt + 35, dr - 10, db - 10};
         SetTextColor(hdc, COL_MUTED);
         SetBkMode(hdc, TRANSPARENT);
-        DrawTextA(hdc, "Suelta el archivo o carpeta aqui", -1, &rcPh, DT_CENTER | DT_SINGLELINE);
+        DrawTextA(hdc, "Suelta el archivo o carpeta aqui", -1, &rcText, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
     }
+
+    SelectObject(hdc, hOldFont);
+    DeleteObject(hFont);
 
     dibujar_escaparate(hdc, w, h);
 }
@@ -329,44 +338,62 @@ static void dibujar_vista_procesando(HDC hdc, int w, int h)
         return;
     }
 
-    // Barra total
-    int bx = 50, bw = w - 100, by = 68, bh = 18;
+    int bx = 60, bw = w - 120, by = 58, bh = 18;
     dibujar_barra(hdc, bx, by, bw, bh, g_estado.pct_total);
 
-    // Porcentaje total
     char buf_pct[32];
     snprintf(buf_pct, sizeof(buf_pct), "%3.0f%%", g_estado.pct_total * 100);
     SetTextColor(hdc, COL_WHITE);
     SetBkMode(hdc, TRANSPARENT);
-    RECT rcPct = {bx + bw + 8, by - 2, w - 10, by + 22};
-    DrawTextA(hdc, buf_pct, -1, &rcPct, DT_LEFT | DT_SINGLELINE);
+    RECT rcPct = {bx + bw + 8, by - 2, w - 10, by + bh + 4};
+    DrawTextA(hdc, buf_pct, -1, &rcPct, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
     char buf_cnt[64];
     snprintf(buf_cnt, sizeof(buf_cnt), "Archivos: %d / %d", g_estado.procesados, g_estado.total);
     SetTextColor(hdc, COL_MUTED);
     SetBkMode(hdc, TRANSPARENT);
-    RECT rcCnt = {bx, by + 24, w - 10, by + 44};
+    RECT rcCnt = {bx, by + 26, w - 10, by + 48};
     DrawTextA(hdc, buf_cnt, -1, &rcCnt, DT_LEFT | DT_SINGLELINE);
 
     if (g_estado.archivo_actual[0])
     {
-        char tipo_label[64];
-        if (g_estado.tipo_actual[0])
-            snprintf(tipo_label, sizeof(tipo_label), "Procesando: %s", g_estado.tipo_actual);
+        int es_video = (g_estado.tipo_actual[0] == 'V');
+        int y_actual = 110;
+
+        if (es_video)
+        {
+            RECT rcTipo = {bx, y_actual, w - 10, y_actual + 22};
+            SetTextColor(hdc, COL_ACCENT);
+            SetBkMode(hdc, TRANSPARENT);
+            DrawTextA(hdc, "Procesando: VIDEO", -1, &rcTipo, DT_LEFT | DT_SINGLELINE);
+            y_actual += 22;
+
+            SetTextColor(hdc, COL_WHITE);
+            SetBkMode(hdc, TRANSPARENT);
+            RECT rcNom = {bx, y_actual, w - 10, y_actual + 18};
+            DrawTextA(hdc, g_estado.archivo_actual, -1, &rcNom, DT_LEFT | DT_SINGLELINE | DT_PATH_ELLIPSIS);
+            y_actual += 22;
+
+            dibujar_barra(hdc, bx, y_actual, bw, 14, g_estado.pct_archivo);
+        }
         else
-            snprintf(tipo_label, sizeof(tipo_label), "Procesando...");
-        SetTextColor(hdc, COL_ACCENT);
-        SetBkMode(hdc, TRANSPARENT);
-        RECT rcTipo = {bx, 128, w - 10, 150};
-        DrawTextA(hdc, tipo_label, -1, &rcTipo, DT_LEFT | DT_SINGLELINE);
+        {
+            g_estado.contador_anim = (g_estado.contador_anim + 1) % 40;
+            int dots = (g_estado.contador_anim / 10) + 1;
+            char buf_img[512];
+            snprintf(buf_img, sizeof(buf_img), "Procesando imagen%s", dots == 1 ? "." : dots == 2 ? ".." : "...");
 
-        SetTextColor(hdc, COL_WHITE);
-        SetBkMode(hdc, TRANSPARENT);
-        RECT rcNom = {bx, 148, w - 10, 168};
-        DrawTextA(hdc, g_estado.archivo_actual, -1, &rcNom, DT_LEFT | DT_SINGLELINE | DT_PATH_ELLIPSIS);
+            SetTextColor(hdc, COL_ACCENT);
+            SetBkMode(hdc, TRANSPARENT);
+            RECT rcTipo = {bx, y_actual, w - 10, y_actual + 22};
+            DrawTextA(hdc, buf_img, -1, &rcTipo, DT_LEFT | DT_SINGLELINE);
+            y_actual += 22;
 
-        // Barra archivo
-        dibujar_barra(hdc, bx, 170, bw, 14, g_estado.pct_archivo);
+            SetTextColor(hdc, COL_WHITE);
+            SetBkMode(hdc, TRANSPARENT);
+            RECT rcNom = {bx, y_actual, w - 10, y_actual + 18};
+            DrawTextA(hdc, g_estado.archivo_actual, -1, &rcNom, DT_LEFT | DT_SINGLELINE | DT_PATH_ELLIPSIS);
+        }
     }
 
     dibujar_escaparate(hdc, w, h);
@@ -374,30 +401,56 @@ static void dibujar_vista_procesando(HDC hdc, int w, int h)
 
 static void dibujar_vista_resultados(HDC hdc, int w, int h)
 {
-    // Checkmark
-    dibujar_texto_centrado(hdc, 60, w, "PROCESO COMPLETADO", COL_SUCCESS, 20, 1);
+    int bx = 55, by = 45, bw = w - 110, bh = 150;
+    HBRUSH hBoxBg = CreateSolidBrush(COL_DROP_BG);
+    HPEN hBoxPen = CreatePen(PS_SOLID, 1, RGB(70, 70, 70));
+    HGDIOBJ hOldBrush = SelectObject(hdc, hBoxBg);
+    HGDIOBJ hOldPen = SelectObject(hdc, hBoxPen);
+    Rectangle(hdc, bx, by, bx + bw, by + bh);
+    SelectObject(hdc, hOldBrush);
+    SelectObject(hdc, hOldPen);
+    DeleteObject(hBoxBg);
+    DeleteObject(hBoxPen);
 
-    // Stats
+    int y = by + 18;
+    dibujar_texto_centrado(hdc, y, w, "PROCESO COMPLETADO", COL_SUCCESS, 17, 1);
+    y += 36;
+
+    HFONT hFont = CreateFontA(14, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+                              DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                              DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Consolas");
+    HFONT hOldFont = SelectObject(hdc, hFont);
+
     char buf[128];
-    int y = 95;
-    snprintf(buf, sizeof(buf), "Imagenes:  %d", g_estado.stats.imagenes);
-    dibujar_texto_centrado(hdc, y, w, buf, COL_WHITE, 14, 0);
-    y += 22;
-    snprintf(buf, sizeof(buf), "Videos:    %d", g_estado.stats.videos);
-    dibujar_texto_centrado(hdc, y, w, buf, COL_WHITE, 14, 0);
-    y += 22;
-    snprintf(buf, sizeof(buf), "Total:     %d", g_estado.stats.imagenes + g_estado.stats.videos);
-    dibujar_texto_centrado(hdc, y, w, buf, COL_ACCENT, 16, 1);
+    snprintf(buf, sizeof(buf), "  Imagenes:  %d", g_estado.stats.imagenes);
+    SetTextColor(hdc, COL_WHITE);
+    SetBkMode(hdc, TRANSPARENT);
+    RECT rcImg = {bx + 20, y, bx + bw - 20, y + 22};
+    DrawTextA(hdc, buf, -1, &rcImg, DT_LEFT | DT_SINGLELINE);
+    y += 24;
 
-    if (g_estado.destino[0] && (g_estado.stats.imagenes > 0 || g_estado.stats.videos > 0))
+    snprintf(buf, sizeof(buf), "  Videos:    %d", g_estado.stats.videos);
+    RECT rcVid = {bx + 20, y, bx + bw - 20, y + 22};
+    DrawTextA(hdc, buf, -1, &rcVid, DT_LEFT | DT_SINGLELINE);
+    y += 24;
+
+    int total = g_estado.stats.imagenes + g_estado.stats.videos;
+    snprintf(buf, sizeof(buf), "  Total:     %d", total);
+    SetTextColor(hdc, COL_ACCENT);
+    RECT rcTot = {bx + 20, y, bx + bw - 20, y + 22};
+    DrawTextA(hdc, buf, -1, &rcTot, DT_LEFT | DT_SINGLELINE);
+
+    SelectObject(hdc, hOldFont);
+    DeleteObject(hFont);
+
+    if (g_estado.destino[0] && total > 0)
     {
-        y += 30;
         char dest_buf[MAX_PATH_LEN + 20];
         snprintf(dest_buf, sizeof(dest_buf), "Destino: %s", g_estado.destino);
         SetTextColor(hdc, COL_MUTED);
         SetBkMode(hdc, TRANSPARENT);
-        RECT rc = {30, y, w - 30, y + 20};
-        DrawTextA(hdc, dest_buf, -1, &rc, DT_CENTER | DT_SINGLELINE | DT_PATH_ELLIPSIS);
+        RECT rc = {bx + 10, by + bh + 8, bx + bw - 10, by + bh + 28};
+        DrawTextA(hdc, dest_buf, -1, &rc, DT_LEFT | DT_SINGLELINE | DT_PATH_ELLIPSIS);
     }
 
     dibujar_escaparate(hdc, w, h);
@@ -415,23 +468,23 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
         CreateWindow("BUTTON", "COMPRIMIR",
                      WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-                     195, 200, 130, 32,
+                     175, 240, 130, 34,
                      hwnd, (HMENU)ID_BTN_COMPRIMIR, hInst, NULL);
         EnableWindow(GetDlgItem(hwnd, ID_BTN_COMPRIMIR), FALSE);
 
         CreateWindow("BUTTON", "SALIR",
                      WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-                     340, 200, 80, 32,
+                     320, 240, 80, 34,
                      hwnd, (HMENU)ID_BTN_SALIR, hInst, NULL);
 
         CreateWindow("BUTTON", "ABRIR CARPETA",
                      WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-                     165, 210, 130, 32,
+                     160, 250, 130, 34,
                      hwnd, (HMENU)ID_BTN_ABRIR, hInst, NULL);
 
         CreateWindow("BUTTON", "VOLVER",
                      WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-                     320, 210, 90, 32,
+                     315, 250, 90, 34,
                      hwnd, (HMENU)ID_BTN_VOLVER, hInst, NULL);
 
         SendDlgItemMessage(hwnd, ID_BTN_COMPRIMIR, WM_SETFONT, (WPARAM)hDef, TRUE);
@@ -488,6 +541,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 char ruta[MAX_PATH_LEN];
                 strncpy(ruta, g_estado.destino, sizeof(ruta) - 1);
                 ruta[sizeof(ruta) - 1] = '\0';
+                if (!g_estado.es_dir)
+                {
+                    char *p = strrchr(ruta, '/');
+                    if (p) *p = '\0';
+                }
                 for (char *p = ruta; *p; p++)
                     if (*p == '/')
                         *p = '\\';
@@ -553,26 +611,25 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
     case WM_PROCESO_TERMINADO:
     {
-        g_estado.vista = VISTA_RESULTADOS;
         if (g_estado.hThread)
         {
             CloseHandle(g_estado.hThread);
             g_estado.hThread = NULL;
         }
-        mostrar_ventana_botones(hwnd);
+        if ((int)wParam > 0)
+        {
+            g_estado.vista = VISTA_RESULTADOS;
+            mostrar_ventana_botones(hwnd);
+        }
+        else
+        {
+            g_estado.vista = VISTA_DROP;
+            g_estado.ruta_drop[0] = '\0';
+            EnableWindow(GetDlgItem(hwnd, ID_BTN_COMPRIMIR), FALSE);
+            mostrar_ventana_botones(hwnd);
+        }
         InvalidateRect(hwnd, NULL, TRUE);
         UpdateWindow(hwnd);
-
-        if (g_estado.abrir_explorador)
-        {
-            char ruta[MAX_PATH_LEN];
-            strncpy(ruta, g_estado.destino, sizeof(ruta) - 1);
-            ruta[sizeof(ruta) - 1] = '\0';
-            for (char *p = ruta; *p; p++)
-                if (*p == '/')
-                    *p = '\\';
-            ShellExecuteA(hwnd, "open", ruta, NULL, NULL, SW_SHOWNORMAL);
-        }
         break;
     }
 
@@ -664,7 +721,7 @@ void iniciar_app(int argc, char *argv[])
     HWND hwnd = CreateWindowExA(
         0, "CompactadorMainClass", "Compactador v1.0",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
-        CW_USEDEFAULT, CW_USEDEFAULT, 560, 360,
+        CW_USEDEFAULT, CW_USEDEFAULT, 560, 400,
         NULL, NULL, hInst, NULL);
 
     if (!hwnd)

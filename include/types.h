@@ -4,6 +4,7 @@
 typedef struct {
     int imagenes;
     int videos;
+    int comprimidas;
 } Estadisticas;
 
 #endif

@@ -116,35 +116,6 @@ static int guardar_buffer(const char *ruta, const void *buf, size_t len)
     return escrito == len;
 }
 
-static int copiar_archivo(const char *src, const char *dst)
-{
-    FILE *in = fopen(src, "rb");
-    if (!in) return 0;
-
-    FILE *out = fopen(dst, "wb");
-    if (!out)
-    {
-        fclose(in);
-        return 0;
-    }
-
-    char buf[8192];
-    size_t n;
-    while ((n = fread(buf, 1, sizeof(buf), in)) > 0)
-    {
-        if (fwrite(buf, 1, n, out) != n)
-        {
-            fclose(in);
-            fclose(out);
-            return 0;
-        }
-    }
-
-    fclose(in);
-    fclose(out);
-    return 1;
-}
-
 int compactar_imagen_adaptativo(const char *ruta_in, const char *ruta_out)
 {
     log_printf(">>> PROCESANDO: entrada=%s salida=%s", ruta_in, ruta_out);
@@ -163,15 +134,15 @@ int compactar_imagen_adaptativo(const char *ruta_in, const char *ruta_out)
     {
         log_printf("SALTADO: ya contiene FIRMA_OPTIMIZADO (Artist=%s)", artist);
         g_object_unref(original);
-        return 0;
+        return 2;
     }
 
     VipsImage *rotada;
     if (vips_autorot(original, &rotada, NULL))
     {
-        log_printf("FALLO autorot -> copia directa");
+        log_printf("FALLO autorot -> se omite");
         g_object_unref(original);
-        return copiar_archivo(ruta_in, ruta_out);
+        return 0;
     }
     g_object_unref(original);
 
@@ -195,18 +166,18 @@ int compactar_imagen_adaptativo(const char *ruta_in, const char *ruta_out)
         if (vips_pngsave_buffer(rotada, &buf, &len,
                                 "palette", TRUE, "colours", PNG_MAX_COLORES, NULL))
         {
-            log_printf("  PNG: fallo palette save -> copia directa (sin firma)");
+            log_printf("  PNG: fallo palette save -> se omite");
             g_object_unref(rotada);
-            return copiar_archivo(ruta_in, ruta_out);
+            return 0;
         }
 
         VipsImage *comprimida = vips_image_new_from_buffer(buf, len, "", NULL);
         if (!comprimida)
         {
-            log_printf("  PNG: fallo reload desde buffer -> copia directa (sin firma)");
+            log_printf("  PNG: fallo reload desde buffer -> se omite");
             g_free(buf);
             g_object_unref(rotada);
-            return copiar_archivo(ruta_in, ruta_out);
+            return 0;
         }
 
         double ssim = ssim_vips(rotada, comprimida);
@@ -239,15 +210,15 @@ int compactar_imagen_adaptativo(const char *ruta_in, const char *ruta_out)
         g_object_unref(comprimida);
 
         if (!ssim_ok)
-            log_printf("  PNG: Falla por SSIM insuficiente (%.6f < %.2f) | Tamanio %s (%zuKB < %zuKB) -> copia sin firma",
+            log_printf("  PNG: Falla por SSIM insuficiente (%.6f < %.2f) | Tamanio %s (%zuKB < %zuKB) -> se omite",
                        ssim, SSIM_UMBRAL_PNG, tam_ok ? "OK" : "insuficiente",
                        len / 1024, tam_original / 1024);
         else
-            log_printf("  PNG: SSIM OK (%.4f >= %.2f) | Falla por tamanio (%zuKB >= %zuKB) -> copia sin firma",
+            log_printf("  PNG: SSIM OK (%.4f >= %.2f) | Falla por tamanio (%zuKB >= %zuKB) -> se omite",
                        ssim, SSIM_UMBRAL_PNG, len / 1024, tam_original / 1024);
 
         g_object_unref(rotada);
-        return copiar_archivo(ruta_in, ruta_out);
+        return 0;
     }
 
     for (int intento = 0; intento < 2; intento++)
@@ -287,8 +258,6 @@ int compactar_imagen_adaptativo(const char *ruta_in, const char *ruta_out)
 
         int ssim_ok = ssim >= umbral;
         int ahorro_ok = (intento == 0) ? (ahorro >= AHORRO_MINIMO) : (ahorro > 0.0);
-        const char *sig_paso = (intento == 0) ? "pasando a intento 2" : "copiando original";
-        (void)sig_paso;
 
         if (ssim_ok && ahorro_ok)
         {
@@ -313,21 +282,21 @@ int compactar_imagen_adaptativo(const char *ruta_in, const char *ruta_out)
         g_free(buf);
 
         if (!ssim_ok && !ahorro_ok)
-            log_printf("  JPEG intento%d: Falla por SSIM insuficiente (%.6f < %.4f) y ahorro insuficiente (%.1f%% %s %s) -> %s",
+            log_printf("  JPEG intento%d: Falla por SSIM insuficiente (%.6f < %.4f) y ahorro insuficiente (%.1f%% %s %s) -> se omite",
                        intento + 1, ssim, umbral, ahorro,
                        (intento == 0) ? "<" : "<=",
-                       (intento == 0) ? "20%" : "0%", sig_paso);
+                       (intento == 0) ? "20%" : "0%");
         else if (!ssim_ok)
-            log_printf("  JPEG intento%d: Falla por SSIM insuficiente (%.6f < %.4f) | Ahorro OK (%.1f%%) -> %s",
-                       intento + 1, ssim, umbral, ahorro, sig_paso);
+            log_printf("  JPEG intento%d: Falla por SSIM insuficiente (%.6f < %.4f) | Ahorro OK (%.1f%%) -> se omite",
+                       intento + 1, ssim, umbral, ahorro);
         else
-            log_printf("  JPEG intento%d: SSIM OK (%.4f >= %.4f) | Falla por ahorro insuficiente (%.1f%% %s %s) -> %s",
+            log_printf("  JPEG intento%d: SSIM OK (%.4f >= %.4f) | Falla por ahorro insuficiente (%.1f%% %s %s) -> se omite",
                        intento + 1, ssim, umbral, ahorro,
                        (intento == 0) ? "<" : "<=",
-                       (intento == 0) ? "20%" : "0%", sig_paso);
+                       (intento == 0) ? "20%" : "0%");
     }
 
-    log_printf("  JPEG: ambos intentos fallaron -> copia sin firma");
+    log_printf("  JPEG: ambos intentos fallaron -> se omite");
     g_object_unref(rotada);
-    return copiar_archivo(ruta_in, ruta_out);
+    return 0;
 }

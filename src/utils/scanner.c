@@ -49,6 +49,26 @@ static int copiar_archivo(const char *src, const char *dst)
     return 1;
 }
 
+static void borrar_directorio(const char *ruta)
+{
+    DIR *dir = opendir(ruta);
+    if (!dir) return;
+    struct dirent *ent;
+    while ((ent = readdir(dir)) != NULL)
+    {
+        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+            continue;
+        char child[MAX_PATH_LEN];
+        snprintf(child, sizeof(child), "%s/%s", ruta, ent->d_name);
+        if (es_directorio(child))
+            borrar_directorio(child);
+        else
+            remove(child);
+    }
+    closedir(dir);
+    rmdir(ruta);
+}
+
 static int es_imagen_media(const char *ruta)
 {
     if (!vips_foreign_find_load(ruta))
@@ -104,13 +124,16 @@ static int procesar_archivo(const char *ruta_in, const char *nombre_archivo, con
 
         progreso_loading(nombre_archivo);
 
-        if (compactar_imagen_adaptativo(ruta_in, ruta_out))
+        int ret_img = compactar_imagen_adaptativo(ruta_in, ruta_out);
+        if (ret_img == 1)
         {
             stats->imagenes++;
+            stats->comprimidas++;
             return 1;
         }
-        if (copiar_archivo(ruta_in, ruta_out))
+        if (ret_img == 2)
         {
+            copiar_archivo(ruta_in, ruta_out);
             stats->imagenes++;
             return 1;
         }
@@ -121,13 +144,16 @@ static int procesar_archivo(const char *ruta_in, const char *nombre_archivo, con
 
         snprintf(ruta_out, sizeof(ruta_out), "%s/%s%s", dir_out, nombre_base, VID_EXT_OUT);
 
-        if (compactar_video(ruta_in, ruta_out))
+        int ret_vid = compactar_video(ruta_in, ruta_out);
+        if (ret_vid == 1)
         {
             stats->videos++;
+            stats->comprimidas++;
             return 1;
         }
-        if (copiar_archivo(ruta_in, ruta_out))
+        if (ret_vid == 2)
         {
+            copiar_archivo(ruta_in, ruta_out);
             stats->videos++;
             return 1;
         }
@@ -144,6 +170,7 @@ static int procesar_recursivo_interno(const char *dir_in, const char *dir_out, E
 
     asegurar_directorio(dir_out);
     int archivos_en_rama = 0;
+    int comp_before = stats->comprimidas;
     struct dirent *ent;
 
     while ((ent = readdir(dir)) != NULL)
@@ -176,7 +203,14 @@ static int procesar_recursivo_interno(const char *dir_in, const char *dir_out, E
     closedir(dir);
 
     if (archivos_en_rama == 0)
+    {
         rmdir(dir_out);
+    }
+    else if (stats->comprimidas == comp_before)
+    {
+        borrar_directorio(dir_out);
+        archivos_en_rama = 0;
+    }
 
     return archivos_en_rama;
 }
@@ -209,12 +243,8 @@ int procesar_archivo_unico(const char *ruta_in, const char *ruta_out, Estadistic
             progreso_loading(nombre);
             usleep(20000);
         }
-        if (compactar_imagen_adaptativo(ruta_in, salida_local))
-        {
-            stats->imagenes++;
-            return 1;
-        }
-        if (copiar_archivo(ruta_in, salida_local))
+        int ret_img = compactar_imagen_adaptativo(ruta_in, salida_local);
+        if (ret_img == 1)
         {
             stats->imagenes++;
             return 1;
@@ -223,12 +253,8 @@ int procesar_archivo_unico(const char *ruta_in, const char *ruta_out, Estadistic
     else if (es_video_media(ruta_in))
     {
         progreso_barra("VIDEO", nombre, 0.0);
-        if (compactar_video(ruta_in, ruta_out))
-        {
-            stats->videos++;
-            return 1;
-        }
-        if (copiar_archivo(ruta_in, ruta_out))
+        int ret_vid = compactar_video(ruta_in, ruta_out);
+        if (ret_vid == 1)
         {
             stats->videos++;
             return 1;
