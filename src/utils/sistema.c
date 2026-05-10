@@ -1,11 +1,12 @@
 #include <sistema.h>
+#include <config.h>
 
 #ifdef _WIN32
 #include <windows.h>
 
 void configurar_consola(void)
 {
-    SetConsoleTitle("Compactador");
+    SetConsoleTitle(TITLE_APP);
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD dwMode = 0;
     GetConsoleMode(hOut, &dwMode);

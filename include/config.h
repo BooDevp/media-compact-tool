@@ -1,6 +1,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+// ── Titulo terminal ──
+#define TITLE_APP "MEDIA COMPACTOR"
+
 // ── Marcador de archivos procesados ──
 #define FIRMA_OPTIMIZADO "_compactador_"
 #define SUFIJO_CARPETA   "_optimizado"
