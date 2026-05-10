@@ -23,10 +23,19 @@ OBJ = compactador.exe
 # Buscamos todos los archivos .c en la carpeta src y sus subcarpetas
 SRC = $(shell find src -name "*.c")
 
-# Regla principal
-all:
-	$(CC) $(SRC) -o $(OBJ) $(CFLAGS) $(LDFLAGS)
+RES_O = src/resources.o
 
-# Limpieza básica
+.PHONY: all clean
+
+all: $(OBJ)
+
+# El .exe depende de los .c y del recurso .o
+$(OBJ): $(SRC) $(RES_O)
+	$(CC) $(SRC) $(RES_O) -o $(OBJ) $(CFLAGS) $(LDFLAGS)
+
+# Compilar recurso .rc -> .o (COFF para MinGW)
+$(RES_O): src/resources.rc src/logo.ico
+	windres src/resources.rc -O coff -o $(RES_O)
+
 clean:
-	rm -f $(OBJ)
+	rm -f $(OBJ) $(RES_O)
