@@ -15,6 +15,7 @@
 #define IMG_QUALITY_1   75
 #define IMG_QUALITY_2   90
 #define PNG_MAX_COLORES 256
+#define SSIM_UMBRAL_PNG 0.90
 
 // ── Configuracion de video ──
 #define VID_CRF     "24"
