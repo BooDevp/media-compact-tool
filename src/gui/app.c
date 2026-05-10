@@ -413,35 +413,49 @@ static void dibujar_vista_resultados(HDC hdc, int w, int h)
     DeleteObject(hBoxPen);
 
     int y = by + 18;
-    dibujar_texto_centrado(hdc, y, w, "PROCESO COMPLETADO", COL_SUCCESS, 17, 1);
-    y += 36;
-
-    HFONT hFont = CreateFontA(14, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-                              DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                              DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Consolas");
-    HFONT hOldFont = SelectObject(hdc, hFont);
-
-    char buf[128];
-    snprintf(buf, sizeof(buf), "  Imagenes:  %d", g_estado.stats.imagenes);
-    SetTextColor(hdc, COL_WHITE);
-    SetBkMode(hdc, TRANSPARENT);
-    RECT rcImg = {bx + 20, y, bx + bw - 20, y + 22};
-    DrawTextA(hdc, buf, -1, &rcImg, DT_LEFT | DT_SINGLELINE);
-    y += 24;
-
-    snprintf(buf, sizeof(buf), "  Videos:    %d", g_estado.stats.videos);
-    RECT rcVid = {bx + 20, y, bx + bw - 20, y + 22};
-    DrawTextA(hdc, buf, -1, &rcVid, DT_LEFT | DT_SINGLELINE);
-    y += 24;
-
     int total = g_estado.stats.imagenes + g_estado.stats.videos;
-    snprintf(buf, sizeof(buf), "  Total:     %d", total);
-    SetTextColor(hdc, COL_ACCENT);
-    RECT rcTot = {bx + 20, y, bx + bw - 20, y + 22};
-    DrawTextA(hdc, buf, -1, &rcTot, DT_LEFT | DT_SINGLELINE);
 
-    SelectObject(hdc, hOldFont);
-    DeleteObject(hFont);
+    if (total > 0)
+    {
+        dibujar_texto_centrado(hdc, y, w, "PROCESO COMPLETADO", COL_SUCCESS, 17, 1);
+        y += 36;
+
+        HFONT hFont = CreateFontA(14, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+                                  DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                                  DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Consolas");
+        HFONT hOldFont = SelectObject(hdc, hFont);
+
+        char buf[128];
+        snprintf(buf, sizeof(buf), "  Imagenes:  %d", g_estado.stats.imagenes);
+        SetTextColor(hdc, COL_WHITE);
+        SetBkMode(hdc, TRANSPARENT);
+        RECT rcImg = {bx + 20, y, bx + bw - 20, y + 22};
+        DrawTextA(hdc, buf, -1, &rcImg, DT_LEFT | DT_SINGLELINE);
+        y += 24;
+
+        snprintf(buf, sizeof(buf), "  Videos:    %d", g_estado.stats.videos);
+        RECT rcVid = {bx + 20, y, bx + bw - 20, y + 22};
+        DrawTextA(hdc, buf, -1, &rcVid, DT_LEFT | DT_SINGLELINE);
+        y += 24;
+
+        snprintf(buf, sizeof(buf), "  Total:     %d", total);
+        SetTextColor(hdc, COL_ACCENT);
+        RECT rcTot = {bx + 20, y, bx + bw - 20, y + 22};
+        DrawTextA(hdc, buf, -1, &rcTot, DT_LEFT | DT_SINGLELINE);
+
+        SelectObject(hdc, hOldFont);
+        DeleteObject(hFont);
+    }
+    else
+    {
+        dibujar_texto_centrado(hdc, y, w, "NO SE OPTIMIZARON ARCHIVOS", COL_MUTED, 15, 1);
+        y += 36;
+
+        SetTextColor(hdc, COL_MUTED);
+        SetBkMode(hdc, TRANSPARENT);
+        RECT rcMsg = {bx + 20, y, bx + bw - 20, by + bh - 10};
+        DrawTextA(hdc, "El archivo ya estaba optimizado.", -1, &rcMsg, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    }
 
     if (g_estado.destino[0] && total > 0)
     {
@@ -616,18 +630,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             CloseHandle(g_estado.hThread);
             g_estado.hThread = NULL;
         }
-        if ((int)wParam > 0)
-        {
-            g_estado.vista = VISTA_RESULTADOS;
-            mostrar_ventana_botones(hwnd);
-        }
-        else
-        {
-            g_estado.vista = VISTA_DROP;
-            g_estado.ruta_drop[0] = '\0';
-            EnableWindow(GetDlgItem(hwnd, ID_BTN_COMPRIMIR), FALSE);
-            mostrar_ventana_botones(hwnd);
-        }
+        g_estado.vista = VISTA_RESULTADOS;
+        mostrar_ventana_botones(hwnd);
+        EnableWindow(GetDlgItem(hwnd, ID_BTN_ABRIR), (int)wParam > 0 ? TRUE : FALSE);
         InvalidateRect(hwnd, NULL, TRUE);
         UpdateWindow(hwnd);
         break;
