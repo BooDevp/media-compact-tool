@@ -29,6 +29,26 @@ int es_directorio(const char *ruta)
     return 0;
 }
 
+static int copiar_archivo(const char *src, const char *dst)
+{
+    FILE *in = fopen(src, "rb");
+    if (!in) return 0;
+    FILE *out = fopen(dst, "wb");
+    if (!out) { fclose(in); return 0; }
+    char buf[8192];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), in)) > 0)
+    {
+        if (fwrite(buf, 1, n, out) != n)
+        {
+            fclose(in); fclose(out);
+            return 0;
+        }
+    }
+    fclose(in); fclose(out);
+    return 1;
+}
+
 static int es_imagen_media(const char *ruta)
 {
     return vips_foreign_find_load(ruta) ? 1 : 0;
@@ -73,6 +93,11 @@ static int procesar_archivo(const char *ruta_in, const char *nombre_archivo, con
             stats->imagenes++;
             return 1;
         }
+        if (copiar_archivo(ruta_in, ruta_out))
+        {
+            stats->imagenes++;
+            return 1;
+        }
     }
     else if (es_video_media(ruta_in))
     {
@@ -81,6 +106,11 @@ static int procesar_archivo(const char *ruta_in, const char *nombre_archivo, con
         snprintf(ruta_out, sizeof(ruta_out), "%s/%s%s", dir_out, nombre_base, VID_EXT_OUT);
 
         if (compactar_video(ruta_in, ruta_out))
+        {
+            stats->videos++;
+            return 1;
+        }
+        if (copiar_archivo(ruta_in, ruta_out))
         {
             stats->videos++;
             return 1;
@@ -168,11 +198,21 @@ int procesar_archivo_unico(const char *ruta_in, const char *ruta_out, Estadistic
             stats->imagenes++;
             return 1;
         }
+        if (copiar_archivo(ruta_in, salida_local))
+        {
+            stats->imagenes++;
+            return 1;
+        }
     }
     else if (es_video_media(ruta_in))
     {
         ui_barra_progreso("VIDEO", nombre, 0.0);
         if (compactar_video(ruta_in, ruta_out))
+        {
+            stats->videos++;
+            return 1;
+        }
+        if (copiar_archivo(ruta_in, ruta_out))
         {
             stats->videos++;
             return 1;
