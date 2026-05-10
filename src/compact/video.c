@@ -1,13 +1,14 @@
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 #include <libavutil/opt.h>
 
 #include <config.h>
 #include <ui.h>
+#include <log.h>
 
-// Codifica y escribe paquetes desde un frame al contenedor de salida
 static int escribir_frame(AVFrame *frame, AVCodecContext *enc, AVStream *st, AVFormatContext *ofmt)
 {
     AVPacket *pkt = av_packet_alloc();
@@ -26,33 +27,57 @@ static int escribir_frame(AVFrame *frame, AVCodecContext *enc, AVStream *st, AVF
     return 0;
 }
 
-// Reencoda el stream de vídeo a HEVC y copia streams no-vídeo al archivo de salida
 int compactar_video(const char *ruta_in, const char *ruta_out)
 {
+    log_printf(">>> VIDEO: entrada=%s salida=%s", ruta_in, ruta_out);
+
+    struct stat st_orig;
+    size_t tam_original = 0;
+    if (stat(ruta_in, &st_orig) == 0)
+        tam_original = (size_t)st_orig.st_size;
+    log_printf("  VIDEO: tam_original=%zuKB", tam_original / 1024);
+
     const char *nombre_archivo = strrchr(ruta_in, '/') ? strrchr(ruta_in, '/') + 1 : (strrchr(ruta_in, '\\') ? strrchr(ruta_in, '\\') + 1 : ruta_in);
 
     av_log_set_level(AV_LOG_QUIET);
     AVFormatContext *ifmt = NULL, *ofmt = NULL;
     AVCodecContext *dec = NULL, *enc = NULL;
-    int v_idx = -1, success = 0;
+    int v_idx = -1, success = 0, es_hevc_input = 0;
 
     if (avformat_open_input(&ifmt, ruta_in, NULL, NULL) < 0)
+    {
+        log_printf("  VIDEO: error al abrir %s", ruta_in);
         return 0;
+    }
     avformat_find_stream_info(ifmt, NULL);
 
     AVDictionaryEntry *tag = av_dict_get(ifmt->metadata, "comment", NULL, 0);
     if (tag && strcmp(tag->value, FIRMA_OPTIMIZADO) == 0)
     {
+        log_printf("  VIDEO: saltado, ya contiene firma");
         avformat_close_input(&ifmt);
         return 0;
     }
 
+    for (int i = 0; i < ifmt->nb_streams; i++)
+    {
+        if (ifmt->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+        {
+            es_hevc_input = (ifmt->streams[i]->codecpar->codec_id == AV_CODEC_ID_HEVC);
+            log_printf("  VIDEO: codec_id=%d es_hevc=%d",
+                       ifmt->streams[i]->codecpar->codec_id, es_hevc_input);
+            break;
+        }
+    }
+
     avformat_alloc_output_context2(&ofmt, NULL, NULL, ruta_out);
+
     for (int i = 0; i < ifmt->nb_streams; i++)
     {
         AVStream *in_s = ifmt->streams[i];
         AVStream *out_s = avformat_new_stream(ofmt, NULL);
-        if (in_s->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && v_idx < 0)
+
+        if (!es_hevc_input && in_s->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && v_idx < 0)
         {
             v_idx = i;
             const AVCodec *d = avcodec_find_decoder(in_s->codecpar->codec_id);
@@ -92,7 +117,7 @@ int compactar_video(const char *ruta_in, const char *ruta_out)
 
         while (av_read_frame(ifmt, pkt) >= 0)
         {
-            if (pkt->stream_index == v_idx)
+            if (!es_hevc_input && pkt->stream_index == v_idx)
             {
                 if (duracion_total > 0 && pkt->pts != AV_NOPTS_VALUE)
                 {
@@ -124,7 +149,8 @@ int compactar_video(const char *ruta_in, const char *ruta_out)
 
         ui_barra_progreso("VIDEO", nombre_archivo, 1.0);
 
-        escribir_frame(NULL, enc, ofmt->streams[v_idx], ofmt);
+        if (enc)
+            escribir_frame(NULL, enc, ofmt->streams[v_idx], ofmt);
         av_write_trailer(ofmt);
         av_frame_free(&frm);
         av_packet_free(&pkt);
@@ -135,11 +161,28 @@ int compactar_video(const char *ruta_in, const char *ruta_out)
     avcodec_free_context(&enc);
 
     if (!(ofmt->oformat->flags & AVFMT_NOFILE))
-    {
         avio_closep(&ofmt->pb);
-    }
 
     avformat_free_context(ofmt);
     avformat_close_input(&ifmt);
+
+    if (success)
+    {
+        size_t tam_comprimido = 0;
+        struct stat st_out;
+        if (stat(ruta_out, &st_out) == 0)
+            tam_comprimido = (size_t)st_out.st_size;
+
+        if (es_hevc_input)
+            log_printf("  VIDEO: HEVC detectado -> stream copy directo");
+        else
+            log_printf("  VIDEO: re-encode a HEVC (CRF %s, preset %s)", VID_CRF, VID_PRESET);
+        log_printf("  VIDEO: Tam: %zuKB -> %zuKB (Ahorro: %.1f%%)",
+                   tam_original / 1024, tam_comprimido / 1024,
+                   tam_original > 0
+                       ? (1.0 - (double)tam_comprimido / (double)tam_original) * 100.0
+                       : 0.0);
+    }
+
     return success;
 }
