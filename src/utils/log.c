@@ -9,12 +9,26 @@
 #include <sys/stat.h>
 #include <stdarg.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include <log.h>
 
 static FILE *log_fp = NULL;
 
+#ifdef _WIN32
+static CRITICAL_SECTION g_log_lock;
+static int g_log_lock_inicializada = 0;
+#endif
+
 void log_init(void)
 {
+#ifdef _WIN32
+    InitializeCriticalSection(&g_log_lock);
+    g_log_lock_inicializada = 1;
+#endif
+
 #ifdef _WIN32
     mkdir("log");
 #else
@@ -38,6 +52,10 @@ void log_printf(const char *fmt, ...)
 {
     if (!log_fp) return;
 
+#ifdef _WIN32
+    if (g_log_lock_inicializada) EnterCriticalSection(&g_log_lock);
+#endif
+
     time_t t = time(NULL);
     struct tm *tm = localtime(&t);
     char ts[16];
@@ -52,6 +70,10 @@ void log_printf(const char *fmt, ...)
 
     fprintf(log_fp, "\n");
     fflush(log_fp);
+
+#ifdef _WIN32
+    if (g_log_lock_inicializada) LeaveCriticalSection(&g_log_lock);
+#endif
 }
 
 void log_close(void)
@@ -62,6 +84,14 @@ void log_close(void)
         fclose(log_fp);
         log_fp = NULL;
     }
+
+#ifdef _WIN32
+    if (g_log_lock_inicializada)
+    {
+        DeleteCriticalSection(&g_log_lock);
+        g_log_lock_inicializada = 0;
+    }
+#endif
 }
 
 #endif

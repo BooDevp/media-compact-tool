@@ -16,7 +16,7 @@ CFLAGS = -I$(VIPS_DEV)/include \
 # -L indica dónde buscar, -l indica qué librería usar
 LDFLAGS = -L$(VIPS_DEV)/lib -lvips -lglib-2.0 -lgobject-2.0 \
           -L$(FFMPEG_DEV)/lib -lavformat -lavcodec -lavutil -lswscale -lswresample \
-          -lm
+          -lm -lgdi32 -lshell32
 
 OBJ = compactador.exe
 

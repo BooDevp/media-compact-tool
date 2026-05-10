@@ -6,7 +6,7 @@
 #include <libavutil/opt.h>
 
 #include <config.h>
-#include <ui.h>
+#include <progreso.h>
 #include <log.h>
 
 static int escribir_frame(AVFrame *frame, AVCodecContext *enc, AVStream *st, AVFormatContext *ofmt)
@@ -128,7 +128,7 @@ int compactar_video(const char *ruta_in, const char *ruta_out)
                     if (porcentaje > 1.0)
                         porcentaje = 1.0;
 
-                    ui_barra_progreso("VIDEO", nombre_archivo, porcentaje);
+                    progreso_barra("VIDEO", nombre_archivo, porcentaje);
                 }
 
                 if (avcodec_send_packet(dec, pkt) >= 0)
@@ -148,7 +148,7 @@ int compactar_video(const char *ruta_in, const char *ruta_out)
             av_packet_unref(pkt);
         }
 
-        ui_barra_progreso("VIDEO", nombre_archivo, 1.0);
+        progreso_barra("VIDEO", nombre_archivo, 1.0);
 
         if (enc)
             escribir_frame(NULL, enc, ofmt->streams[v_idx], ofmt);

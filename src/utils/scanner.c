@@ -10,7 +10,7 @@
 #include <imagen.h>
 #include <video.h>
 #include <config.h>
-#include <ui.h>
+#include <progreso.h>
 
 static void asegurar_directorio(const char *ruta)
 {
@@ -86,7 +86,7 @@ static int procesar_archivo(const char *ruta_in, const char *nombre_archivo, con
         const char *ext = has_alpha ? ".png" : ".jpg";
         snprintf(ruta_out, sizeof(ruta_out), "%s/%s%s", dir_out, nombre_base, ext);
 
-        ui_loading_imagen(nombre_archivo);
+        progreso_loading(nombre_archivo);
 
         if (compactar_imagen_adaptativo(ruta_in, ruta_out))
         {
@@ -101,7 +101,7 @@ static int procesar_archivo(const char *ruta_in, const char *nombre_archivo, con
     }
     else if (es_video_media(ruta_in))
     {
-        ui_barra_progreso("VIDEO", nombre_archivo, 0.0);
+        progreso_barra("VIDEO", nombre_archivo, 0.0);
 
         snprintf(ruta_out, sizeof(ruta_out), "%s/%s%s", dir_out, nombre_base, VID_EXT_OUT);
 
@@ -153,7 +153,7 @@ static int procesar_recursivo_interno(const char *dir_in, const char *dir_out, E
             {
                 (*processed_count)++;
                 double pct = ((double)(*processed_count)) / (double)total_files;
-                ui_barra_progreso_total(pct, *processed_count, total_files);
+                progreso_barra_total(pct, *processed_count, total_files);
             }
         }
     }
@@ -190,7 +190,7 @@ int procesar_archivo_unico(const char *ruta_in, const char *ruta_out, Estadistic
 
         for (int i = 0; i < 5; i++)
         {
-            ui_loading_imagen(nombre);
+            progreso_loading(nombre);
             usleep(20000);
         }
         if (compactar_imagen_adaptativo(ruta_in, salida_local))
@@ -206,7 +206,7 @@ int procesar_archivo_unico(const char *ruta_in, const char *ruta_out, Estadistic
     }
     else if (es_video_media(ruta_in))
     {
-        ui_barra_progreso("VIDEO", nombre, 0.0);
+        progreso_barra("VIDEO", nombre, 0.0);
         if (compactar_video(ruta_in, ruta_out))
         {
             stats->videos++;
@@ -256,7 +256,7 @@ int contar_media_recursiva(const char *dir_in, int *acumulado)
             {
                 total_en_esta_carpeta++;
                 (*acumulado)++;
-                ui_animar_analisis(*acumulado);
+                progreso_animar(*acumulado);
             }
         }
     }
