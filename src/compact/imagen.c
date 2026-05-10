@@ -107,6 +107,15 @@ static double ssim_vips(VipsImage *ref, VipsImage *cmp)
     return ssim_val;
 }
 
+static int guardar_buffer(const char *ruta, const void *buf, size_t len)
+{
+    FILE *f = fopen(ruta, "wb");
+    if (!f) return 0;
+    size_t escrito = fwrite(buf, 1, len, f);
+    fclose(f);
+    return escrito == len;
+}
+
 static int copiar_archivo(const char *src, const char *dst)
 {
     FILE *in = fopen(src, "rb");
@@ -203,8 +212,6 @@ int compactar_imagen_adaptativo(const char *ruta_in, const char *ruta_out)
         double ssim = ssim_vips(rotada, comprimida);
         log_printf("  PNG: palette_len=%zu (%zuKB) SSIM=%.6f umbral=%.2f",
                    len, len / 1024, ssim, SSIM_UMBRAL_PNG);
-        g_free(buf);
-        g_object_unref(comprimida);
 
         int ssim_ok = ssim >= SSIM_UMBRAL_PNG;
         int tam_ok = len < tam_original;
@@ -214,11 +221,22 @@ int compactar_imagen_adaptativo(const char *ruta_in, const char *ruta_out)
             log_printf("  PNG: COMPRIMIDO (SSIM OK %.4f >= %.2f, ahorro %zuKB)",
                        ssim, SSIM_UMBRAL_PNG, (tam_original - len) / 1024);
             vips_image_set_string(rotada, "exif-ifd0-Artist", FIRMA_OPTIMIZADO);
-            vips_pngsave(rotada, ruta_out,
-                         "palette", TRUE, "colours", PNG_MAX_COLORES, NULL);
+            void *buf_out = NULL;
+            size_t len_out = 0;
+            if (vips_pngsave_buffer(rotada, &buf_out, &len_out,
+                                    "palette", TRUE, "colours", PNG_MAX_COLORES, NULL) == 0)
+            {
+                guardar_buffer(ruta_out, buf_out, len_out);
+                g_free(buf_out);
+            }
+            g_free(buf);
+            g_object_unref(comprimida);
             g_object_unref(rotada);
             return 1;
         }
+
+        g_free(buf);
+        g_object_unref(comprimida);
 
         if (!ssim_ok)
             log_printf("  PNG: Falla por SSIM insuficiente (%.6f < %.2f) | Tamanio %s (%zuKB < %zuKB) -> copia sin firma",
@@ -258,7 +276,6 @@ int compactar_imagen_adaptativo(const char *ruta_in, const char *ruta_out)
         }
 
         double ssim = ssim_vips(rotada, comprimida);
-        g_free(buf);
         g_object_unref(comprimida);
 
         double ahorro = tam_original > 0
@@ -279,11 +296,20 @@ int compactar_imagen_adaptativo(const char *ruta_in, const char *ruta_out)
                        (intento == 0) ? ">=" : ">",
                        (intento == 0) ? "20%" : "0%");
             vips_image_set_string(rotada, "exif-ifd0-Artist", FIRMA_OPTIMIZADO);
-            vips_jpegsave(rotada, ruta_out,
-                          "Q", calidad, "optimize_coding", TRUE, NULL);
+            void *buf_out = NULL;
+            size_t len_out = 0;
+            if (vips_jpegsave_buffer(rotada, &buf_out, &len_out,
+                                     "Q", calidad, "optimize_coding", TRUE, NULL) == 0)
+            {
+                guardar_buffer(ruta_out, buf_out, len_out);
+                g_free(buf_out);
+            }
+            g_free(buf);
             g_object_unref(rotada);
             return 1;
         }
+
+        g_free(buf);
 
         if (!ssim_ok && !ahorro_ok)
             log_printf("  JPEG intento%d: Falla por SSIM insuficiente (%.6f < %.4f) y ahorro insuficiente (%.1f%% %s %s) -> %s",
