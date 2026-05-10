@@ -338,43 +338,50 @@ static void dibujar_vista_procesando(HDC hdc, int w, int h)
         return;
     }
 
-    int bx = 60, bw = w - 120, by = 58, bh = 18;
+    int bx = 60, bw = w - 170, by = 50, bh = 20;
     dibujar_barra(hdc, bx, by, bw, bh, g_estado.pct_total);
 
     char buf_pct[32];
     snprintf(buf_pct, sizeof(buf_pct), "%3.0f%%", g_estado.pct_total * 100);
     SetTextColor(hdc, COL_WHITE);
     SetBkMode(hdc, TRANSPARENT);
-    RECT rcPct = {bx + bw + 8, by - 2, w - 10, by + bh + 4};
+    RECT rcPct = {bx + bw + 16, by, w - 10, by + bh};
     DrawTextA(hdc, buf_pct, -1, &rcPct, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
     char buf_cnt[64];
     snprintf(buf_cnt, sizeof(buf_cnt), "Archivos: %d / %d", g_estado.procesados, g_estado.total);
     SetTextColor(hdc, COL_MUTED);
     SetBkMode(hdc, TRANSPARENT);
-    RECT rcCnt = {bx, by + 26, w - 10, by + 48};
+    RECT rcCnt = {bx, by + bh + 16, w - 10, by + bh + 38};
     DrawTextA(hdc, buf_cnt, -1, &rcCnt, DT_LEFT | DT_SINGLELINE);
 
     if (g_estado.archivo_actual[0])
     {
         int es_video = (g_estado.tipo_actual[0] == 'V');
-        int y_actual = 110;
+        int y_actual = by + bh + 52;
 
         if (es_video)
         {
-            RECT rcTipo = {bx, y_actual, w - 10, y_actual + 22};
+            RECT rcTipo = {bx, y_actual, w - 10, y_actual + 20};
             SetTextColor(hdc, COL_ACCENT);
             SetBkMode(hdc, TRANSPARENT);
             DrawTextA(hdc, "Procesando: VIDEO", -1, &rcTipo, DT_LEFT | DT_SINGLELINE);
-            y_actual += 22;
+            y_actual += 26;
 
             SetTextColor(hdc, COL_WHITE);
             SetBkMode(hdc, TRANSPARENT);
             RECT rcNom = {bx, y_actual, w - 10, y_actual + 18};
             DrawTextA(hdc, g_estado.archivo_actual, -1, &rcNom, DT_LEFT | DT_SINGLELINE | DT_PATH_ELLIPSIS);
-            y_actual += 22;
+            y_actual += 26;
 
-            dibujar_barra(hdc, bx, y_actual, bw, 14, g_estado.pct_archivo);
+            dibujar_barra(hdc, bx, y_actual, bw, bh, g_estado.pct_archivo);
+
+            char buf_vpct[32];
+            snprintf(buf_vpct, sizeof(buf_vpct), "%3.0f%%", g_estado.pct_archivo * 100);
+            SetTextColor(hdc, COL_WHITE);
+            SetBkMode(hdc, TRANSPARENT);
+            RECT rcVPct = {bx + bw + 16, y_actual, w - 10, y_actual + bh};
+            DrawTextA(hdc, buf_vpct, -1, &rcVPct, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
         }
         else
         {
@@ -385,9 +392,9 @@ static void dibujar_vista_procesando(HDC hdc, int w, int h)
 
             SetTextColor(hdc, COL_ACCENT);
             SetBkMode(hdc, TRANSPARENT);
-            RECT rcTipo = {bx, y_actual, w - 10, y_actual + 22};
+            RECT rcTipo = {bx, y_actual, w - 10, y_actual + 20};
             DrawTextA(hdc, buf_img, -1, &rcTipo, DT_LEFT | DT_SINGLELINE);
-            y_actual += 22;
+            y_actual += 26;
 
             SetTextColor(hdc, COL_WHITE);
             SetBkMode(hdc, TRANSPARENT);
@@ -401,7 +408,7 @@ static void dibujar_vista_procesando(HDC hdc, int w, int h)
 
 static void dibujar_vista_resultados(HDC hdc, int w, int h)
 {
-    int bx = 55, by = 45, bw = w - 110, bh = 150;
+    int bx = 50, by = 35, bw = w - 100, bh = 180;
     HBRUSH hBoxBg = CreateSolidBrush(COL_DROP_BG);
     HPEN hBoxPen = CreatePen(PS_SOLID, 1, RGB(70, 70, 70));
     HGDIOBJ hOldBrush = SelectObject(hdc, hBoxBg);
@@ -412,44 +419,72 @@ static void dibujar_vista_resultados(HDC hdc, int w, int h)
     DeleteObject(hBoxBg);
     DeleteObject(hBoxPen);
 
-    int y = by + 18;
+    int y = by + 22;
     int total = g_estado.stats.imagenes + g_estado.stats.videos;
+
+    HFONT hFont = CreateFontA(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+                              DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                              DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
+    HFONT hOldFont = SelectObject(hdc, hFont);
 
     if (total > 0)
     {
-        dibujar_texto_centrado(hdc, y, w, "PROCESO COMPLETADO", COL_SUCCESS, 17, 1);
-        y += 36;
-
-        HFONT hFont = CreateFontA(14, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-                                  DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                                  DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Consolas");
-        HFONT hOldFont = SelectObject(hdc, hFont);
-
-        char buf[128];
-        snprintf(buf, sizeof(buf), "  Imagenes:  %d", g_estado.stats.imagenes);
-        SetTextColor(hdc, COL_WHITE);
-        SetBkMode(hdc, TRANSPARENT);
-        RECT rcImg = {bx + 20, y, bx + bw - 20, y + 22};
-        DrawTextA(hdc, buf, -1, &rcImg, DT_LEFT | DT_SINGLELINE);
-        y += 24;
-
-        snprintf(buf, sizeof(buf), "  Videos:    %d", g_estado.stats.videos);
-        RECT rcVid = {bx + 20, y, bx + bw - 20, y + 22};
-        DrawTextA(hdc, buf, -1, &rcVid, DT_LEFT | DT_SINGLELINE);
-        y += 24;
-
-        snprintf(buf, sizeof(buf), "  Total:     %d", total);
-        SetTextColor(hdc, COL_ACCENT);
-        RECT rcTot = {bx + 20, y, bx + bw - 20, y + 22};
-        DrawTextA(hdc, buf, -1, &rcTot, DT_LEFT | DT_SINGLELINE);
-
         SelectObject(hdc, hOldFont);
         DeleteObject(hFont);
+        dibujar_texto_centrado(hdc, y, w, "PROCESO COMPLETADO", COL_SUCCESS, 16, 1);
+        y += 38;
+        hFont = CreateFontA(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+                            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                            DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
+        SelectObject(hdc, hFont);
+
+        int lx = bx + 20;
+        int rx = bx + 135;
+        int vx = bx + 145;
+        int lh = 22;
+        int lg = 26;
+        char val[32];
+
+        SetTextColor(hdc, COL_WHITE);
+        SetBkMode(hdc, TRANSPARENT);
+        RECT rcL = {lx, y, rx, y + lh};
+        RECT rcV = {vx, y, bx + bw - 20, y + lh};
+        snprintf(val, sizeof(val), "%d", g_estado.stats.imagenes);
+        DrawTextA(hdc, "Imagenes:", -1, &rcL, DT_RIGHT | DT_SINGLELINE);
+        DrawTextA(hdc, val, -1, &rcV, DT_LEFT | DT_SINGLELINE);
+        y += lg;
+
+        rcL.top = y; rcL.bottom = y + lh;
+        rcV.top = y; rcV.bottom = y + lh;
+        snprintf(val, sizeof(val), "%d", g_estado.stats.videos);
+        DrawTextA(hdc, "Videos:", -1, &rcL, DT_RIGHT | DT_SINGLELINE);
+        DrawTextA(hdc, val, -1, &rcV, DT_LEFT | DT_SINGLELINE);
+        y += lg;
+
+        rcL.top = y; rcL.bottom = y + lh;
+        rcV.top = y; rcV.bottom = y + lh;
+        SetTextColor(hdc, COL_ACCENT);
+        snprintf(val, sizeof(val), "%d", total);
+        DrawTextA(hdc, "Total:", -1, &rcL, DT_RIGHT | DT_SINGLELINE);
+        DrawTextA(hdc, val, -1, &rcV, DT_LEFT | DT_SINGLELINE);
+        y += lg + 4;
+
+        rcL.top = y; rcL.bottom = y + lh;
+        rcV.top = y; rcV.bottom = y + lh;
+        SetTextColor(hdc, COL_MUTED);
+        DrawTextA(hdc, "Destino:", -1, &rcL, DT_RIGHT | DT_SINGLELINE);
+        DrawTextA(hdc, g_estado.destino, -1, &rcV, DT_LEFT | DT_SINGLELINE | DT_PATH_ELLIPSIS);
     }
     else
     {
+        SelectObject(hdc, hOldFont);
+        DeleteObject(hFont);
         dibujar_texto_centrado(hdc, y, w, "NO SE OPTIMIZARON ARCHIVOS", COL_MUTED, 15, 1);
         y += 36;
+        hFont = CreateFontA(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+                            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                            DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
+        SelectObject(hdc, hFont);
 
         SetTextColor(hdc, COL_MUTED);
         SetBkMode(hdc, TRANSPARENT);
@@ -457,16 +492,8 @@ static void dibujar_vista_resultados(HDC hdc, int w, int h)
         DrawTextA(hdc, "El archivo ya estaba optimizado.", -1, &rcMsg, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
     }
 
-    if (g_estado.destino[0] && total > 0)
-    {
-        char dest_buf[MAX_PATH_LEN + 20];
-        snprintf(dest_buf, sizeof(dest_buf), "Destino: %s", g_estado.destino);
-        SetTextColor(hdc, COL_MUTED);
-        SetBkMode(hdc, TRANSPARENT);
-        RECT rc = {bx + 10, by + bh + 8, bx + bw - 10, by + bh + 28};
-        DrawTextA(hdc, dest_buf, -1, &rc, DT_LEFT | DT_SINGLELINE | DT_PATH_ELLIPSIS);
-    }
-
+    SelectObject(hdc, hOldFont);
+    DeleteObject(hFont);
     dibujar_escaparate(hdc, w, h);
 }
 
