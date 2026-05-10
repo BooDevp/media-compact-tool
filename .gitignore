@@ -9,3 +9,6 @@ vips-modules-8.18/
 # IDEs
 .vscode/
 .idea/
+
+# Ejecucion
+log/
