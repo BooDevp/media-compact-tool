@@ -51,7 +51,13 @@ static int copiar_archivo(const char *src, const char *dst)
 
 static int es_imagen_media(const char *ruta)
 {
-    return vips_foreign_find_load(ruta) ? 1 : 0;
+    if (!vips_foreign_find_load(ruta))
+        return 0;
+    VipsImage *img = vips_image_new_from_file(ruta, "access", VIPS_ACCESS_SEQUENTIAL, NULL);
+    if (!img)
+        return 0;
+    g_object_unref(img);
+    return 1;
 }
 
 static int es_video_media(const char *ruta)
@@ -60,8 +66,18 @@ static int es_video_media(const char *ruta)
     int ok = 0;
     if (avformat_open_input(&pCtx, ruta, NULL, NULL) == 0)
     {
+        if (avformat_find_stream_info(pCtx, NULL) >= 0)
+        {
+            for (int i = 0; i < pCtx->nb_streams; i++)
+            {
+                if (pCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+                {
+                    ok = 1;
+                    break;
+                }
+            }
+        }
         avformat_close_input(&pCtx);
-        ok = 1;
     }
     return ok;
 }

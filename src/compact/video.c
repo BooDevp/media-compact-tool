@@ -60,15 +60,24 @@ int compactar_video(const char *ruta_in, const char *ruta_out)
         return 0;
     }
 
+    int tiene_video = 0;
     for (int i = 0; i < ifmt->nb_streams; i++)
     {
         if (ifmt->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
         {
+            tiene_video = 1;
             es_hevc_input = (ifmt->streams[i]->codecpar->codec_id == AV_CODEC_ID_HEVC);
             log_printf("  VIDEO: codec_id=%d es_hevc=%d",
                        ifmt->streams[i]->codecpar->codec_id, es_hevc_input);
             break;
         }
+    }
+
+    if (!tiene_video)
+    {
+        log_printf("  VIDEO: no se encontraron streams de video, se omite");
+        avformat_close_input(&ifmt);
+        return 0;
     }
 
     avformat_alloc_output_context2(&ofmt, NULL, NULL, ruta_out);
