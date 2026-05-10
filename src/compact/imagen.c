@@ -288,6 +288,7 @@ int compactar_imagen_adaptativo(const char *ruta_in, const char *ruta_out)
         int ssim_ok = ssim >= umbral;
         int ahorro_ok = (intento == 0) ? (ahorro >= AHORRO_MINIMO) : (ahorro > 0.0);
         const char *sig_paso = (intento == 0) ? "pasando a intento 2" : "copiando original";
+        (void)sig_paso;
 
         if (ssim_ok && ahorro_ok)
         {

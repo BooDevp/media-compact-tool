@@ -1,3 +1,7 @@
+#include <config.h>
+
+#if MODE_DEV
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,7 +10,6 @@
 #include <stdarg.h>
 
 #include <log.h>
-#include <config.h>
 
 static FILE *log_fp = NULL;
 
@@ -60,3 +63,5 @@ void log_close(void)
         log_fp = NULL;
     }
 }
+
+#endif

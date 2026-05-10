@@ -22,6 +22,11 @@
 #define VID_PRESET  "medium"
 #define VID_EXT_OUT ".mp4"
 
+// ── Modo desarrollo (1 = genera logs en log/) ──
+#ifndef MODE_DEV
+#define MODE_DEV 1
+#endif
+
 // ── Limites del sistema ──
 #define MAX_PATH_LEN 2048
 #define MAX_NAME_LEN 512

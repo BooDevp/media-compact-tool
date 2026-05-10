@@ -63,9 +63,10 @@ Implementación desde cero con libvips (sin dependencia externa):
 ## Compresión de vídeo
 
 - Usa **ffmpeg** via libavformat/libavcodec
-- Códec: H.264
-- CRF: 24
-- Preset: medium
+- Códec: HEVC (H.265) con CRF 24, preset medium
+- **Detección de codec**: si la entrada ya es HEVC, hace stream copy directo sin re-encode
+- Si la entrada es H.264, MPEG4 u otro, re-encodea a HEVC
+- **Audio**: pass-through directo (no se re-encodea, se copia tal cual)
 - Salida: `.mp4`
 
 ## Requisitos de compilación
@@ -119,16 +120,17 @@ En Windows, el programa crea un mutex global para evitar múltiples instancias s
 2. Arrastra o escribe la ruta de una **carpeta** o **archivo** y presiona Enter
    - **Carpeta**: procesa recursivamente todo el contenido, crea una carpeta `_optimizado`
    - **Archivo**: procesa el archivo individual, genera `nombre_optimizado.ext`
-3. Al terminar, muestra resumen con archivos procesados y abre el explorador si es una carpeta
+3. Los archivos que ya estaban optimizados (con firma `_compactador_`) se copian tal cual a la salida
+4. Al terminar, muestra resumen con archivos procesados y abre el explorador si es una carpeta
 
 ### Archivos soportados
 
 - **Imágenes**: cualquier formato que libvips pueda leer (JPEG, PNG, WebP, TIFF, BMP, GIF, etc.)
 - **Vídeos**: cualquier formato que ffmpeg pueda leer (MP4, AVI, MKV, MOV, etc.)
 
-## Logs
+## Logs (modo desarrollo)
 
-Cada ejecución genera un archivo de log en `log/compactador_YYYYMMDD_HHMMSS.log` con detalle de cada imagen procesada:
+Cuando `MODE_DEV = 1` (config.h), cada ejecución genera un archivo de log en `log/compactador_YYYYMMDD_HHMMSS.log` con detalle de cada archivo procesado:
 
 ```
 [Hora] >>> PROCESANDO: entrada=ruta salida=ruta
@@ -139,7 +141,10 @@ Cada ejecución genera un archivo de log en `log/compactador_YYYYMMDD_HHMMSS.log
 [Hora]   JPEG intento=2 calidad=90 umbral_ssim=0.9500
 [Hora]   JPEG: SSIM=0.980123 ahorro=55.0% len=1993200 orig=4429312
 [Hora]   JPEG intento2: COMPRIMIDO Q90 (SSIM OK 0.9801 >= 0.9500, ahorro 55.0% > 0%)
+[Hora]   VIDEO: Tam: 100MB -> 40MB (Ahorro: 60.0%)
 ```
+
+Para compilar sin logs (modo release): cambiar `MODE_DEV` a `0` en `config.h` o pasar `-DMODE_DEV=0` al compilador. En modo release las funciones de log se convierten en macros vacías (cero overhead).
 
 ## Configuración (`include/config.h`)
 
@@ -154,7 +159,8 @@ Cada ejecución genera un archivo de log en `log/compactador_YYYYMMDD_HHMMSS.log
 | `IMG_QUALITY_1` | 75 | Calidad JPEG del primer intento |
 | `IMG_QUALITY_2` | 90 | Calidad JPEG del segundo intento |
 | `PNG_MAX_COLORES` | 256 | Colores máximos en paleta PNG |
-| `VID_CRF` | 24 | CRF para H.264 |
+| `MODE_DEV` | 1 | 0 = sin logs, 1 = genera logs en log/ |
+| `VID_CRF` | 24 | CRF para H.265 |
 | `VID_PRESET` | medium | Preset de x264 |
 | `VID_EXT_OUT` | .mp4 | Extensión de salida de vídeo |
 | `MAX_PATH_LEN` | 2048 | Tamaño máximo de ruta |
@@ -196,6 +202,4 @@ compactador/
 └── ffmpeg-dev/                 Cabeceras y bibliotecas de ffmpeg
 ```
 
-## Licencia
 
-Uso interno.

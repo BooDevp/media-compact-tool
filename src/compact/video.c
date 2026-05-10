@@ -36,6 +36,7 @@ int compactar_video(const char *ruta_in, const char *ruta_out)
     if (stat(ruta_in, &st_orig) == 0)
         tam_original = (size_t)st_orig.st_size;
     log_printf("  VIDEO: tam_original=%zuKB", tam_original / 1024);
+    (void)tam_original;
 
     const char *nombre_archivo = strrchr(ruta_in, '/') ? strrchr(ruta_in, '/') + 1 : (strrchr(ruta_in, '\\') ? strrchr(ruta_in, '\\') + 1 : ruta_in);
 
@@ -172,6 +173,7 @@ int compactar_video(const char *ruta_in, const char *ruta_out)
         struct stat st_out;
         if (stat(ruta_out, &st_out) == 0)
             tam_comprimido = (size_t)st_out.st_size;
+        (void)tam_comprimido;
 
         if (es_hevc_input)
             log_printf("  VIDEO: HEVC detectado -> stream copy directo");
