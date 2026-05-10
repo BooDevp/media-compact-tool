@@ -1,26 +1,33 @@
 # Compactador
 
-Compresor inteligente de imágenes y vídeos con calidad adaptativa basada en **SSIM** (Structural Similarity Index).
+Compresor inteligente de imágenes y vídeos con calidad adaptativa basada en **SSIM** (Structural Similarity Index). Interfaz gráfica nativa de Windows con drag & drop, barras de progreso y vista de resultados.
 
 ## Flujo de trabajo
 
 ```
 Arrastras carpeta o archivo →
-  ┌─ Es directorio? → escanea recursivamente → procesa cada archivo
-  └─ Es archivo?    → procesa individualmente
-                            │
-                     ┌──────┴──────┐
-                     │             │
-                 ¿Imagen?      ¿Vídeo?
-                     │             │
-              compresión       ffmpeg
-              adaptativa       CRF 24
-              (SSIM)           medium
-                     │
-              ┌──────┴──────┐
-              │             │
-          Sin alpha    Con alpha
-          (JPEG)        (PNG palette)
+             │
+      ┌──────┴──────┐
+      │             │
+  ¿Directorio?   ¿Archivo?
+      │             │
+ Crear salida    Generar nombre
+ _optimizado     _optimizado.ext
+      │             │
+      └──────┬──────┘
+             │
+      ┌──────┴──────┐
+      │             │
+  ¿Imagen?      ¿Vídeo?
+      │             │
+compresión      ffmpeg
+adaptativa      CRF 24
+(SSIM)          medium
+      │
+ ┌────┴────┐
+ │         │
+Sin alpha  Con alpha
+(JPEG)     (PNG palette)
 ```
 
 ## Compresión adaptativa de imágenes
@@ -34,20 +41,20 @@ Dos intentos de re-encode con control de calidad vía SSIM:
 | 1 (Q75) | 75 | ≥ 0.975 | ≥ 20% |
 | 2 (Q90) | 90 | ≥ 0.95 | > 0% |
 
-Si el primer intento no cumple SSIM o ahorro, prueba con el segundo. Si ambos fallan, copia el original sin modificar.
+Si el primer intento no cumple SSIM o ahorro, prueba con el segundo. Si ambos fallan, el archivo se omite (no se copia).
 
 ### Con transparencia (PNG palette)
 
 - Convierte a PNG con paleta de 256 colores
 - Umbral SSIM: ≥ 0.90
-- Si no cumple SSIM o el tamaño no se reduce, copia el original
+- Si no cumple SSIM o el tamaño no se reduce, el archivo se omite
 
 ### Metadatos
 
 - Se eliminan EXIF, IPTC y XMP antes de comprimir
 - Se aplica rotación automática (`vips_autorot`)
 - Se añade la firma `_compactador_` en el campo EXIF Artist solo si el archivo se comprime con éxito
-- Las copias directas (fallback) **no** llevan firma, permitiendo reintentar en otra ejecución
+- Los archivos que ya tienen la firma se copian tal cual a la salida en modo directorio (safety), y se saltan en modo archivo individual (evita cadenas infinitas)
 
 ### Cálculo de SSIM
 
@@ -85,6 +92,8 @@ make
 
 El Makefile busca automáticamente todos los `.c` en `src/` y sus subdirectorios. El ejecutable se genera como `compactador.exe` con el icono de `src/logo.ico` embebido (visible en Explorer, barra de tareas y Alt+Tab).
 
+> **Nota**: El programa usa la API Win32 (`windows.h`, `gdi32`, `shell32`) para la interfaz gráfica. No requiere bibliotecas adicionales de UI.
+
 Para limpiar:
 
 ```bash
@@ -114,19 +123,36 @@ compactador.exe
 
 En Windows, el programa crea un mutex global para evitar múltiples instancias simultáneas.
 
-## Uso
+## Uso (GUI)
 
-1. Al iniciar, aparece una interfaz en terminal con zona de "drop"
-2. Arrastra o escribe la ruta de una **carpeta** o **archivo** y presiona Enter
-   - **Carpeta**: procesa recursivamente todo el contenido, crea una carpeta `_optimizado`
-   - **Archivo**: procesa el archivo individual, genera `nombre_optimizado.ext`
-3. Los archivos que ya estaban optimizados (con firma `_compactador_`) se copian tal cual a la salida
-4. Al terminar, muestra resumen con archivos procesados y abre el explorador si es una carpeta
+1. Al iniciar, aparece una ventana con zona drag & drop y botón **COMPRIMIR**
+2. Arrastra una **carpeta** o **archivo** sobre la ventana:
+   - Se muestra la ruta en la zona de drop y se habilita el botón **COMPRIMIR**
+3. Pulsa **COMPRIMIR** para iniciar el procesamiento:
+   - **Carpeta**: escanea recursivamente, crea `_optimizado` con los resultados
+   - **Archivo**: procesa individualmente, genera `nombre_optimizado.ext`
+4. Durante el procesamiento se muestra:
+   - Barra de progreso global (archivos procesados / total)
+   - Para vídeos: barra de progreso individual
+   - Para imágenes: indicador animado sin barra
+5. Al terminar, se muestra un cuadro resumen con estadísticas:
+   - **ABRIR CARPETA**: abre el directorio de salida en el explorador
+   - **VOLVER**: regresa a la vista inicial para procesar otro archivo
+   - **SALIR**: cierra la aplicación
+
+### Comportamiento de archivos con firma (`_compactador_`)
+
+- **Modo directorio**: los archivos que ya tienen la firma se copian a la salida como safety (por si el usuario borra el origen). Si al final solo hay copias y ninguna compresión real, la carpeta `_optimizado` se elimina automáticamente.
+- **Modo archivo individual**: los archivos con firma se saltan sin copiar (evita cadenas como `_optimizado_optimizado_optimizado...`).
+
+### Archivos no soportados
+
+Los archivos que no son imágenes ni vídeos reconocidos se ignoran silenciosamente (`.lnk`, `.gitconfig`, texto plano, etc.). La detección verifica el contenido real del archivo, no solo la extensión.
 
 ### Archivos soportados
 
-- **Imágenes**: cualquier formato que libvips pueda leer (JPEG, PNG, WebP, TIFF, BMP, GIF, etc.)
-- **Vídeos**: cualquier formato que ffmpeg pueda leer (MP4, AVI, MKV, MOV, etc.)
+- **Imágenes**: cualquier formato que libvips pueda leer y cargar (JPEG, PNG, WebP, TIFF, BMP, GIF, etc.)
+- **Vídeos**: cualquier formato que ffmpeg pueda abrir y contenga al menos un stream de video (MP4, AVI, MKV, MOV, etc.)
 
 ## Logs (modo desarrollo)
 
@@ -141,7 +167,10 @@ Cuando `MODE_DEV = 1` (config.h), cada ejecución genera un archivo de log en `l
 [Hora]   JPEG intento=2 calidad=90 umbral_ssim=0.9500
 [Hora]   JPEG: SSIM=0.980123 ahorro=55.0% len=1993200 orig=4429312
 [Hora]   JPEG intento2: COMPRIMIDO Q90 (SSIM OK 0.9801 >= 0.9500, ahorro 55.0% > 0%)
-[Hora]   VIDEO: Tam: 100MB -> 40MB (Ahorro: 60.0%)
+[Hora] SALTADO: ya contiene FIRMA_OPTIMIZADO (Artist=_compactador_...)
+[Hora] >>> VIDEO: entrada=video.mp4 salida=video.mp4
+[Hora]   VIDEO: tam_original=939KB
+[Hora]   VIDEO: saltado, ya contiene firma
 ```
 
 Para compilar sin logs (modo release): cambiar `MODE_DEV` a `0` en `config.h` o pasar `-DMODE_DEV=0` al compilador. En modo release las funciones de log se convierten en macros vacías (cero overhead).
@@ -174,27 +203,29 @@ compactador/
 ├── Makefile                    Sistema de compilación
 ├── README.md                   Este archivo
 ├── include/                    Cabeceras
+│   ├── app.h                  API de inicio de la GUI
 │   ├── config.h               Constantes de configuración
 │   ├── imagen.h               API de compresión de imágenes
 │   ├── log.h                  API de logging
+│   ├── progreso.h             API de callbacks de progreso
 │   ├── scanner.h              API de escaneo de archivos
-│   ├── sistema.h              API de utilidades del sistema
-│   ├── str_util.h             API de utilidades de cadenas
+│   ├── str_util.h             Utilidades de cadenas
 │   ├── types.h                Tipos comunes (Estadisticas)
-│   └── ui.h                   API de interfaz de terminal
+│   └── video.h                API de compresión de vídeo
 ├── src/                        Código fuente
-│   ├── main.c                 Punto de entrada y bucle principal
+│   ├── main.c                 Punto de entrada
 │   ├── logo.ico               Icono de la aplicación
 │   ├── resources.rc            Recurso Windows (icono embebido)
+│   ├── gui/
+│   │   └── app.c              Ventana principal (Win32 API, GDI)
 │   ├── compact/
 │   │   ├── imagen.c           SSIM + compresión adaptativa JPEG/PNG
 │   │   └── video.c            Compresión de vídeo con ffmpeg
 │   └── utils/
 │       ├── log.c              Implementación de logging
-│       ├── scanner.c          Escáner recursivo de archivos
-│       ├── sistema.c          Configuración de consola Windows
-│       ├── str_util.c         Utilidades de cadenas y rutas
-│       └── ui.c               Interfaz de terminal (barras, colores)
+│       ├── progreso.c         Callbacks de progreso (puente hilo-GUI)
+│       ├── scanner.c          Escáner recursivo + detección de medios
+│       └── str_util.c         Utilidades de cadenas y rutas
 ├── libs/                       DLLs en tiempo de ejecución
 │   ├── *.dll
 │   └── vips-modules-8.18/
