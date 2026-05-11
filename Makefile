@@ -22,6 +22,8 @@ OBJ = compactador.exe
 
 # Buscamos todos los archivos .c en la carpeta src y sus subcarpetas
 SRC = $(shell find src -name "*.c")
+# Dependencias de cabeceras (incluyendo config.h)
+HDR = $(shell find include -name "*.h")
 
 RES_O = src/resources.o
 
@@ -30,7 +32,7 @@ RES_O = src/resources.o
 all: $(OBJ)
 
 # El .exe depende de los .c y del recurso .o
-$(OBJ): $(SRC) $(RES_O)
+$(OBJ): $(SRC) $(HDR) $(RES_O)
 	$(CC) $(SRC) $(RES_O) -o $(OBJ) $(CFLAGS) $(LDFLAGS)
 
 # Compilar recurso .rc -> .o (COFF para MinGW)

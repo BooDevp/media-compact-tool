@@ -37,9 +37,11 @@ Sin alpha  Con alpha
 Dos intentos de re-encode con control de calidad vía SSIM:
 
 | Intento | Calidad | Umbral SSIM | Ahorro mínimo |
-|---|---|---|---|
-| 1 (Q75) | 75 | ≥ 0.975 | ≥ 20% |
-| 2 (Q90) | 90 | ≥ 0.95 | > 0% |
+|---|---|---|---|---|
+| 1 (Q75) | 75 | ≥ 0.970 | ≥ 20% |
+| 2 (Q80) | 80 | ≥ 0.965 | ≥ 15% |
+| 3 (Q85) | 85 | ≥ 0.960 | ≥ 10% |
+| 4 (Q90) | 90 | ≥ 0.945 | > 0% |
 
 Si el primer intento no cumple SSIM o ahorro, prueba con el segundo. Si ambos fallan, el archivo se omite (no se copia).
 
@@ -181,12 +183,18 @@ Para compilar sin logs (modo release): cambiar `MODE_DEV` a `0` en `config.h` o 
 |---|---|---|
 | `FIRMA_OPTIMIZADO` | `_compactador_` | Marca EXIF en archivos comprimidos |
 | `SUFIJO_CARPETA` | `_optimizado` | Sufijo para carpeta de salida |
-| `SSIM_UMBRAL_1` | 0.975 | SSIM mínimo para intento Q75 |
-| `SSIM_UMBRAL_2` | 0.95 | SSIM mínimo para intento Q90 |
-| `SSIM_UMBRAL_PNG` | 0.90 | SSIM mínimo para PNG con transparencia |
-| `AHORRO_MINIMO` | 20% | Ahorro mínimo requerido en intento Q75 |
+| `SSIM_UMBRAL_1` | 0.970 | SSIM mínimo para intento Q75 |
+| `SSIM_UMBRAL_2` | 0.965 | SSIM mínimo para intento Q80 |
+| `SSIM_UMBRAL_3` | 0.960 | SSIM mínimo para intento Q85 |
+| `SSIM_UMBRAL_4` | 0.945 | SSIM mínimo para intento Q90 |
+| `AHORRO_MINIMO_1` | 20% | Ahorro mínimo requerido en intento Q75 |
+| `AHORRO_MINIMO_2` | 15% | Ahorro mínimo requerido en intento Q80 |
+| `AHORRO_MINIMO_3` | 10% | Ahorro mínimo requerido en intento Q85 |
+| `AHORRO_MINIMO_4` | 0% | Ahorro mínimo requerido en intento Q90 (>0% real) |
 | `IMG_QUALITY_1` | 75 | Calidad JPEG del primer intento |
-| `IMG_QUALITY_2` | 90 | Calidad JPEG del segundo intento |
+| `IMG_QUALITY_2` | 80 | Calidad JPEG del segundo intento |
+| `IMG_QUALITY_3` | 85 | Calidad JPEG del tercer intento |
+| `IMG_QUALITY_4` | 90 | Calidad JPEG del cuarto intento |
 | `PNG_MAX_COLORES` | 256 | Colores máximos en paleta PNG |
 | `MODE_DEV` | 1 | 0 = sin logs, 1 = genera logs en log/ |
 | `VID_CRF` | 24 | CRF para H.265 |

@@ -5,15 +5,22 @@
 #define FIRMA_OPTIMIZADO "_compactador_"
 #define SUFIJO_CARPETA   "_optimizado"
 
-// ── Configuracion de imagenes ──
-#define IMG_QUALITY  75
-
-// ── Compresion adaptativa ──
-#define SSIM_UMBRAL_1   0.975
-#define SSIM_UMBRAL_2   0.95
-#define AHORRO_MINIMO   20
+// ── Compresion adaptativa (JPEG) ──
 #define IMG_QUALITY_1   75
-#define IMG_QUALITY_2   90
+#define IMG_QUALITY_2   80
+#define IMG_QUALITY_3   85
+#define IMG_QUALITY_4   90
+
+#define SSIM_UMBRAL_1   0.970
+#define SSIM_UMBRAL_2   0.965
+#define SSIM_UMBRAL_3   0.960
+#define SSIM_UMBRAL_4   0.945
+
+#define AHORRO_MINIMO_1 20.0
+#define AHORRO_MINIMO_2 15.0
+#define AHORRO_MINIMO_3 10.0
+#define AHORRO_MINIMO_4  0.0
+
 #define PNG_MAX_COLORES 256
 #define SSIM_UMBRAL_PNG 0.90
 

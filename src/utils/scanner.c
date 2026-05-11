@@ -49,26 +49,6 @@ static int copiar_archivo(const char *src, const char *dst)
     return 1;
 }
 
-static void borrar_directorio(const char *ruta)
-{
-    DIR *dir = opendir(ruta);
-    if (!dir) return;
-    struct dirent *ent;
-    while ((ent = readdir(dir)) != NULL)
-    {
-        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
-            continue;
-        char child[MAX_PATH_LEN];
-        snprintf(child, sizeof(child), "%s/%s", ruta, ent->d_name);
-        if (es_directorio(child))
-            borrar_directorio(child);
-        else
-            remove(child);
-    }
-    closedir(dir);
-    rmdir(ruta);
-}
-
 static int es_imagen_media(const char *ruta)
 {
     if (!vips_foreign_find_load(ruta))
@@ -131,9 +111,14 @@ static int procesar_archivo(const char *ruta_in, const char *nombre_archivo, con
             stats->comprimidas++;
             return 1;
         }
-        if (ret_img == 2)
+        if (ret_img == 2 || ret_img == 0)
         {
             copiar_archivo(ruta_in, ruta_out);
+            stats->imagenes++;
+            return 1;
+        }
+        if (ret_img == 3)
+        {
             stats->imagenes++;
             return 1;
         }
@@ -151,7 +136,7 @@ static int procesar_archivo(const char *ruta_in, const char *nombre_archivo, con
             stats->comprimidas++;
             return 1;
         }
-        if (ret_vid == 2)
+        if (ret_vid == 2 || ret_vid == 0)
         {
             copiar_archivo(ruta_in, ruta_out);
             stats->videos++;
@@ -170,7 +155,6 @@ static int procesar_recursivo_interno(const char *dir_in, const char *dir_out, E
 
     asegurar_directorio(dir_out);
     int archivos_en_rama = 0;
-    int comp_before = stats->comprimidas;
     struct dirent *ent;
 
     while ((ent = readdir(dir)) != NULL)
@@ -206,11 +190,6 @@ static int procesar_recursivo_interno(const char *dir_in, const char *dir_out, E
     {
         rmdir(dir_out);
     }
-    else if (stats->comprimidas == comp_before)
-    {
-        borrar_directorio(dir_out);
-        archivos_en_rama = 0;
-    }
 
     return archivos_en_rama;
 }
@@ -244,7 +223,7 @@ int procesar_archivo_unico(const char *ruta_in, const char *ruta_out, Estadistic
             usleep(20000);
         }
         int ret_img = compactar_imagen_adaptativo(ruta_in, salida_local);
-        if (ret_img == 1)
+        if (ret_img == 1 || ret_img == 3)
         {
             stats->imagenes++;
             return 1;
