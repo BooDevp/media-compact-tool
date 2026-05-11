@@ -127,10 +127,10 @@ En Windows, el programa crea un mutex global para evitar múltiples instancias s
 
 ## Uso (GUI)
 
-1. Al iniciar, aparece una ventana con zona drag & drop y botón **COMPRIMIR**
+1. Al iniciar, aparece una ventana con zona drag & drop y botón **OPTIMIZAR**
 2. Arrastra una **carpeta** o **archivo** sobre la ventana:
-   - Se muestra la ruta en la zona de drop y se habilita el botón **COMPRIMIR**
-3. Pulsa **COMPRIMIR** para iniciar el procesamiento:
+   - Se muestra la ruta en la zona de drop y se habilita el botón **OPTIMIZAR**
+3. Pulsa **OPTIMIZAR** para iniciar el procesamiento:
    - **Carpeta**: escanea recursivamente, crea `_optimizado` con los resultados
    - **Archivo**: procesa individualmente, genera `nombre_optimizado.ext`
 4. Durante el procesamiento se muestra:

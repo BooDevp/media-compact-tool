@@ -27,7 +27,7 @@ static void mostrar_ventana_botones(HWND hwnd);
 static void iniciar_procesamiento(void);
 
 // ── Botones ──
-#define ID_BTN_COMPRIMIR 200
+#define ID_BTN_OPTIMIZAR 200
 #define ID_BTN_SALIR 201
 #define ID_BTN_ABRIR 202
 #define ID_BTN_VOLVER 203
@@ -61,6 +61,8 @@ typedef struct
     HANDLE hThread;
     int es_dir;
     volatile int contador_anim;
+    HFONT hUIFont;     // fuente principal (Segoe UI, normal)
+    HFONT hUIFontBold; // fuente principal (Segoe UI, bold)
 } AppState;
 
 static AppState g_estado = {0};
@@ -210,9 +212,14 @@ static void pintar_boton(HDC hdc, RECT *rc, int activo, int hover, const char *t
     SelectObject(hdc, hBrush);
     SelectObject(hdc, hPen);
     Rectangle(hdc, rc->left, rc->top, rc->right, rc->bottom);
+
+    // Usar la fuente unificada
+    HFONT hOldFont = SelectObject(hdc, g_estado.hUIFont);
     SetBkMode(hdc, TRANSPARENT);
     SetTextColor(hdc, fg);
     DrawTextA(hdc, texto, -1, rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    SelectObject(hdc, hOldFont);
+
     DeleteObject(hBrush);
     DeleteObject(hPen);
 }
@@ -223,7 +230,7 @@ static void mostrar_ventana_botones(HWND hwnd)
     int show_drop = (g_estado.vista == VISTA_DROP);
     int show_results = (g_estado.vista == VISTA_RESULTADOS);
 
-    ShowWindow(GetDlgItem(hwnd, ID_BTN_COMPRIMIR), show_drop ? SW_SHOW : SW_HIDE);
+    ShowWindow(GetDlgItem(hwnd, ID_BTN_OPTIMIZAR), show_drop ? SW_SHOW : SW_HIDE);
     ShowWindow(GetDlgItem(hwnd, ID_BTN_SALIR), show_drop ? SW_SHOW : SW_HIDE);
     ShowWindow(GetDlgItem(hwnd, ID_BTN_ABRIR), show_results ? SW_SHOW : SW_HIDE);
     ShowWindow(GetDlgItem(hwnd, ID_BTN_VOLVER), show_results ? SW_SHOW : SW_HIDE);
@@ -233,17 +240,20 @@ static void mostrar_ventana_botones(HWND hwnd)
 static void dibujar_texto_centrado(HDC hdc, int y, int ancho, const char *texto,
                                    COLORREF color, int tam, int bold)
 {
-    HFONT hFont = CreateFontA(tam, 0, 0, 0, bold ? FW_BOLD : FW_NORMAL,
-                              FALSE, FALSE, FALSE, DEFAULT_CHARSET,
-                              OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                              DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
+    HFONT hFont = bold ? g_estado.hUIFontBold : g_estado.hUIFont;
+    // Ajustamos el tamaño de la fuente si es necesario (no se puede cambiar el tamaño de un HFONT ya creado,
+    // pero dejamos la función igual por compatibilidad; el tamaño se ignora porque ya está definido en la fuente global)
+    (void)tam;
     HFONT hOld = SelectObject(hdc, hFont);
     SetTextColor(hdc, color);
     SetBkMode(hdc, TRANSPARENT);
-    RECT rc = {0, y, ancho, y + tam + 10};
+    // Calcular altura aproximada
+    TEXTMETRIC tm;
+    GetTextMetrics(hdc, &tm);
+    int alto = tm.tmHeight + 2;
+    RECT rc = {0, y, ancho, y + alto + 10};
     DrawTextA(hdc, texto, -1, &rc, DT_CENTER | DT_SINGLELINE);
     SelectObject(hdc, hOld);
-    DeleteObject(hFont);
 }
 
 static void dibujar_barra(HDC hdc, int x, int y, int w, int h, double pct)
@@ -275,15 +285,17 @@ static void dibujar_barra(HDC hdc, int x, int y, int w, int h, double pct)
 
 static void dibujar_escaparate(HDC hdc, int w, int h)
 {
+    HFONT hOld = SelectObject(hdc, g_estado.hUIFont);
     SetTextColor(hdc, COL_MUTED);
     SetBkMode(hdc, TRANSPARENT);
-    RECT rc = {w - 120, h - 22, w - 10, h - 4};
+    RECT rc = {w - 130, h - 22, w - 10, h - 4};
     DrawTextA(hdc, "ESC para salir", -1, &rc, DT_RIGHT | DT_SINGLELINE);
+    SelectObject(hdc, hOld);
 }
 
 static void dibujar_vista_drop(HDC hdc, int w, int h)
 {
-    dibujar_texto_centrado(hdc, 44, w, "", COL_MUTED, 11, 0);
+    dibujar_texto_centrado(hdc, 44, w, "", COL_MUTED, 0, 0); // espacio vacío
 
     int dl = 60, dr = w - 60, dt = 70, db = 200;
     HBRUSH hDropBrush = CreateSolidBrush(COL_DROP_BG);
@@ -296,11 +308,7 @@ static void dibujar_vista_drop(HDC hdc, int w, int h)
     DeleteObject(hDropBrush);
     DeleteObject(hDropPen);
 
-    HFONT hFont = CreateFontA(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-                              DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                              DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
-    HFONT hOldFont = SelectObject(hdc, hFont);
-
+    HFONT hOldFont = SelectObject(hdc, g_estado.hUIFont);
     RECT rcText = {dl + 15, dt, dr - 15, db};
     if (g_estado.ruta_drop[0])
     {
@@ -320,9 +328,7 @@ static void dibujar_vista_drop(HDC hdc, int w, int h)
         SetBkMode(hdc, TRANSPARENT);
         DrawTextA(hdc, "Suelta el archivo o carpeta aqui", -1, &rcText, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
     }
-
     SelectObject(hdc, hOldFont);
-    DeleteObject(hFont);
 
     dibujar_escaparate(hdc, w, h);
 }
@@ -333,7 +339,7 @@ static void dibujar_vista_procesando(HDC hdc, int w, int h)
     {
         char buf[128];
         snprintf(buf, sizeof(buf), "Analizando archivos... (%d encontrados)", g_estado.procesados);
-        dibujar_texto_centrado(hdc, 80, w, buf, COL_MUTED, 14, 0);
+        dibujar_texto_centrado(hdc, 80, w, buf, COL_MUTED, 0, 0);
         dibujar_escaparate(hdc, w, h);
         return;
     }
@@ -343,6 +349,7 @@ static void dibujar_vista_procesando(HDC hdc, int w, int h)
 
     char buf_pct[32];
     snprintf(buf_pct, sizeof(buf_pct), "%3.0f%%", g_estado.pct_total * 100);
+    HFONT hOld = SelectObject(hdc, g_estado.hUIFont);
     SetTextColor(hdc, COL_WHITE);
     SetBkMode(hdc, TRANSPARENT);
     RECT rcPct = {bx + bw + 16, by, w - 10, by + bh};
@@ -351,7 +358,6 @@ static void dibujar_vista_procesando(HDC hdc, int w, int h)
     char buf_cnt[64];
     snprintf(buf_cnt, sizeof(buf_cnt), "Archivos: %d / %d", g_estado.procesados, g_estado.total);
     SetTextColor(hdc, COL_MUTED);
-    SetBkMode(hdc, TRANSPARENT);
     RECT rcCnt = {bx, by + bh + 16, w - 10, by + bh + 38};
     DrawTextA(hdc, buf_cnt, -1, &rcCnt, DT_LEFT | DT_SINGLELINE);
 
@@ -364,12 +370,10 @@ static void dibujar_vista_procesando(HDC hdc, int w, int h)
         {
             RECT rcTipo = {bx, y_actual, w - 10, y_actual + 20};
             SetTextColor(hdc, COL_ACCENT);
-            SetBkMode(hdc, TRANSPARENT);
             DrawTextA(hdc, "Procesando: VIDEO", -1, &rcTipo, DT_LEFT | DT_SINGLELINE);
             y_actual += 26;
 
             SetTextColor(hdc, COL_WHITE);
-            SetBkMode(hdc, TRANSPARENT);
             RECT rcNom = {bx, y_actual, w - 10, y_actual + 18};
             DrawTextA(hdc, g_estado.archivo_actual, -1, &rcNom, DT_LEFT | DT_SINGLELINE | DT_PATH_ELLIPSIS);
             y_actual += 26;
@@ -379,7 +383,6 @@ static void dibujar_vista_procesando(HDC hdc, int w, int h)
             char buf_vpct[32];
             snprintf(buf_vpct, sizeof(buf_vpct), "%3.0f%%", g_estado.pct_archivo * 100);
             SetTextColor(hdc, COL_WHITE);
-            SetBkMode(hdc, TRANSPARENT);
             RECT rcVPct = {bx + bw + 16, y_actual, w - 10, y_actual + bh};
             DrawTextA(hdc, buf_vpct, -1, &rcVPct, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
         }
@@ -388,21 +391,21 @@ static void dibujar_vista_procesando(HDC hdc, int w, int h)
             g_estado.contador_anim = (g_estado.contador_anim + 1) % 40;
             int dots = (g_estado.contador_anim / 10) + 1;
             char buf_img[512];
-            snprintf(buf_img, sizeof(buf_img), "Procesando imagen%s", dots == 1 ? "." : dots == 2 ? ".." : "...");
+            snprintf(buf_img, sizeof(buf_img), "Procesando imagen%s", dots == 1 ? "." : dots == 2 ? ".."
+                                                                                                  : "...");
 
             SetTextColor(hdc, COL_ACCENT);
-            SetBkMode(hdc, TRANSPARENT);
             RECT rcTipo = {bx, y_actual, w - 10, y_actual + 20};
             DrawTextA(hdc, buf_img, -1, &rcTipo, DT_LEFT | DT_SINGLELINE);
             y_actual += 26;
 
             SetTextColor(hdc, COL_WHITE);
-            SetBkMode(hdc, TRANSPARENT);
             RECT rcNom = {bx, y_actual, w - 10, y_actual + 18};
             DrawTextA(hdc, g_estado.archivo_actual, -1, &rcNom, DT_LEFT | DT_SINGLELINE | DT_PATH_ELLIPSIS);
         }
     }
 
+    SelectObject(hdc, hOld);
     dibujar_escaparate(hdc, w, h);
 }
 
@@ -422,22 +425,12 @@ static void dibujar_vista_resultados(HDC hdc, int w, int h)
     int y = by + 22;
     int total = g_estado.stats.imagenes + g_estado.stats.videos;
 
-    HFONT hFont = CreateFontA(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-                              DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                              DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
-    HFONT hOldFont = SelectObject(hdc, hFont);
-
     if (total > 0)
     {
-        SelectObject(hdc, hOldFont);
-        DeleteObject(hFont);
-        dibujar_texto_centrado(hdc, y, w, "PROCESO COMPLETADO", COL_SUCCESS, 16, 1);
+        dibujar_texto_centrado(hdc, y, w, "PROCESO COMPLETADO", COL_SUCCESS, 0, 1); // bold
         y += 38;
-        hFont = CreateFontA(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-                            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                            DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
-        SelectObject(hdc, hFont);
 
+        HFONT hOldFont = SelectObject(hdc, g_estado.hUIFont);
         int lx = bx + 20;
         int rx = bx + 135;
         int vx = bx + 145;
@@ -454,46 +447,48 @@ static void dibujar_vista_resultados(HDC hdc, int w, int h)
         DrawTextA(hdc, val, -1, &rcV, DT_LEFT | DT_SINGLELINE);
         y += lg;
 
-        rcL.top = y; rcL.bottom = y + lh;
-        rcV.top = y; rcV.bottom = y + lh;
+        rcL.top = y;
+        rcL.bottom = y + lh;
+        rcV.top = y;
+        rcV.bottom = y + lh;
         snprintf(val, sizeof(val), "%d", g_estado.stats.videos);
         DrawTextA(hdc, "Videos:", -1, &rcL, DT_RIGHT | DT_SINGLELINE);
         DrawTextA(hdc, val, -1, &rcV, DT_LEFT | DT_SINGLELINE);
         y += lg;
 
-        rcL.top = y; rcL.bottom = y + lh;
-        rcV.top = y; rcV.bottom = y + lh;
+        rcL.top = y;
+        rcL.bottom = y + lh;
+        rcV.top = y;
+        rcV.bottom = y + lh;
         SetTextColor(hdc, COL_ACCENT);
         snprintf(val, sizeof(val), "%d", total);
         DrawTextA(hdc, "Total:", -1, &rcL, DT_RIGHT | DT_SINGLELINE);
         DrawTextA(hdc, val, -1, &rcV, DT_LEFT | DT_SINGLELINE);
         y += lg + 4;
 
-        rcL.top = y; rcL.bottom = y + lh;
-        rcV.top = y; rcV.bottom = y + lh;
+        rcL.top = y;
+        rcL.bottom = y + lh;
+        rcV.top = y;
+        rcV.bottom = y + lh;
         SetTextColor(hdc, COL_MUTED);
         DrawTextA(hdc, "Destino:", -1, &rcL, DT_RIGHT | DT_SINGLELINE);
         DrawTextA(hdc, g_estado.destino, -1, &rcV, DT_LEFT | DT_SINGLELINE | DT_PATH_ELLIPSIS);
+
+        SelectObject(hdc, hOldFont);
     }
     else
     {
-        SelectObject(hdc, hOldFont);
-        DeleteObject(hFont);
-        dibujar_texto_centrado(hdc, y, w, "NO SE OPTIMIZARON ARCHIVOS", COL_MUTED, 15, 1);
+        dibujar_texto_centrado(hdc, y, w, "NO SE OPTIMIZARON ARCHIVOS", COL_MUTED, 0, 1);
         y += 36;
-        hFont = CreateFontA(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-                            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                            DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
-        SelectObject(hdc, hFont);
 
+        HFONT hOldFont = SelectObject(hdc, g_estado.hUIFont);
         SetTextColor(hdc, COL_MUTED);
         SetBkMode(hdc, TRANSPARENT);
         RECT rcMsg = {bx + 20, y, bx + bw - 20, by + bh - 10};
         DrawTextA(hdc, "El archivo ya estaba optimizado.", -1, &rcMsg, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        SelectObject(hdc, hOldFont);
     }
 
-    SelectObject(hdc, hOldFont);
-    DeleteObject(hFont);
     dibujar_escaparate(hdc, w, h);
 }
 
@@ -504,34 +499,49 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
     {
     case WM_CREATE:
     {
-        HFONT hDef = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+        // Crear fuentes unificadas
+        g_estado.hUIFont = CreateFontA(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+                                       DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                                       DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
+        g_estado.hUIFontBold = CreateFontA(13, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+                                           DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                                           DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
+
         HINSTANCE hInst = ((LPCREATESTRUCT)lParam)->hInstance;
 
-        CreateWindow("BUTTON", "COMPRIMIR",
+        // Botones centrados y del mismo tamaño (140x34)
+        int btnW = 140, btnH = 34;
+        int space = 30;
+        int totalW = btnW * 2 + space;
+        int left = (560 - totalW) / 2; // 560 es el ancho de la ventana
+
+        CreateWindow("BUTTON", "OPTIMIZAR",
                      WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-                     175, 240, 130, 34,
-                     hwnd, (HMENU)ID_BTN_COMPRIMIR, hInst, NULL);
-        EnableWindow(GetDlgItem(hwnd, ID_BTN_COMPRIMIR), FALSE);
+                     left, 240, btnW, btnH,
+                     hwnd, (HMENU)ID_BTN_OPTIMIZAR, hInst, NULL);
+        EnableWindow(GetDlgItem(hwnd, ID_BTN_OPTIMIZAR), FALSE);
 
         CreateWindow("BUTTON", "SALIR",
                      WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-                     320, 240, 80, 34,
+                     left + btnW + space, 240, btnW, btnH,
                      hwnd, (HMENU)ID_BTN_SALIR, hInst, NULL);
 
+        // Botones de resultados (misma posición y tamaño, ocultos inicialmente)
         CreateWindow("BUTTON", "ABRIR CARPETA",
-                     WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-                     160, 250, 130, 34,
+                     WS_CHILD | BS_OWNERDRAW,
+                     left, 240, btnW, btnH,
                      hwnd, (HMENU)ID_BTN_ABRIR, hInst, NULL);
 
         CreateWindow("BUTTON", "VOLVER",
-                     WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-                     315, 250, 90, 34,
+                     WS_CHILD | BS_OWNERDRAW,
+                     left + btnW + space, 240, btnW, btnH,
                      hwnd, (HMENU)ID_BTN_VOLVER, hInst, NULL);
 
-        SendDlgItemMessage(hwnd, ID_BTN_COMPRIMIR, WM_SETFONT, (WPARAM)hDef, TRUE);
-        SendDlgItemMessage(hwnd, ID_BTN_SALIR, WM_SETFONT, (WPARAM)hDef, TRUE);
-        SendDlgItemMessage(hwnd, ID_BTN_ABRIR, WM_SETFONT, (WPARAM)hDef, TRUE);
-        SendDlgItemMessage(hwnd, ID_BTN_VOLVER, WM_SETFONT, (WPARAM)hDef, TRUE);
+        // Asignar la misma fuente a todos los botones
+        SendDlgItemMessage(hwnd, ID_BTN_OPTIMIZAR, WM_SETFONT, (WPARAM)g_estado.hUIFont, TRUE);
+        SendDlgItemMessage(hwnd, ID_BTN_SALIR, WM_SETFONT, (WPARAM)g_estado.hUIFont, TRUE);
+        SendDlgItemMessage(hwnd, ID_BTN_ABRIR, WM_SETFONT, (WPARAM)g_estado.hUIFont, TRUE);
+        SendDlgItemMessage(hwnd, ID_BTN_VOLVER, WM_SETFONT, (WPARAM)g_estado.hUIFont, TRUE);
 
         ShowWindow(GetDlgItem(hwnd, ID_BTN_ABRIR), SW_HIDE);
         ShowWindow(GetDlgItem(hwnd, ID_BTN_VOLVER), SW_HIDE);
@@ -551,7 +561,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 if (*p == '\\')
                     *p = '/';
 
-            EnableWindow(GetDlgItem(hwnd, ID_BTN_COMPRIMIR),
+            EnableWindow(GetDlgItem(hwnd, ID_BTN_OPTIMIZAR),
                          es_ruta_valida(g_estado.ruta_drop) ? TRUE : FALSE);
             InvalidateRect(hwnd, NULL, TRUE);
         }
@@ -564,7 +574,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         int id = LOWORD(wParam);
         if (HIWORD(wParam) == BN_CLICKED)
         {
-            if (id == ID_BTN_COMPRIMIR)
+            if (id == ID_BTN_OPTIMIZAR)
                 iniciar_procesamiento();
             else if (id == ID_BTN_SALIR)
                 PostMessage(hwnd, WM_CLOSE, 0, 0);
@@ -572,7 +582,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             {
                 g_estado.vista = VISTA_DROP;
                 g_estado.ruta_drop[0] = '\0';
-                EnableWindow(GetDlgItem(hwnd, ID_BTN_COMPRIMIR), FALSE);
+                EnableWindow(GetDlgItem(hwnd, ID_BTN_OPTIMIZAR), FALSE);
                 mostrar_ventana_botones(hwnd);
                 InvalidateRect(hwnd, NULL, TRUE);
                 UpdateWindow(hwnd);
@@ -585,7 +595,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 if (!g_estado.es_dir)
                 {
                     char *p = strrchr(ruta, '/');
-                    if (p) *p = '\0';
+                    if (p)
+                        *p = '\0';
                 }
                 for (char *p = ruta; *p; p++)
                     if (*p == '/')
@@ -612,9 +623,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         const char *texto = NULL;
         COLORREF borde = COL_ACCENT, color_txt = COL_WHITE;
 
-        if (dis->CtlID == ID_BTN_COMPRIMIR)
+        if (dis->CtlID == ID_BTN_OPTIMIZAR)
         {
-            texto = "COMPRIMIR";
+            texto = "OPTIMIZAR";
             borde = COL_ACCENT;
         }
         else if (dis->CtlID == ID_BTN_SALIR)
@@ -715,6 +726,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
     }
 
     case WM_DESTROY:
+        // Liberar fuentes
+        if (g_estado.hUIFont)
+            DeleteObject(g_estado.hUIFont);
+        if (g_estado.hUIFontBold)
+            DeleteObject(g_estado.hUIFontBold);
         PostQuitMessage(0);
         break;
 
